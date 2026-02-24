@@ -211,10 +211,16 @@ const Widget: React.FC = () => {
                       urgent_not_important: '紧急不重要',
                       not_urgent_not_important: '不重要不紧急'
                    };
+                   const totalFocusTime = state.statistics.focusTime;
+                   const percentage = totalFocusTime > 0 ? Math.round((value / totalFocusTime) * 100) : 0;
+                   
                    return (
                      <div key={key} className="flex items-center justify-between text-sm">
                        <span className="capitalize text-gray-600">{quadrantNames[key] || key}</span>
-                       <span className="font-mono font-medium">{formatDuration(value)}</span>
+                       <div className="flex items-center space-x-2">
+                         <span className="text-xs text-gray-400">({percentage}%)</span>
+                         <span className="font-mono font-medium">{formatDuration(value)}</span>
+                       </div>
                      </div>
                    );
                  })}
