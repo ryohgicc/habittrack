@@ -50,10 +50,10 @@ export const Quadrant: React.FC<QuadrantProps> = ({
   };
 
   return (
-    <div className={clsx('flex flex-col h-full border rounded-lg overflow-hidden bg-white dark:bg-gray-900', className)}>
-      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b font-semibold text-xs text-gray-500 uppercase tracking-wider flex justify-between items-center">
+    <div className={clsx('flex flex-col h-full border rounded-lg overflow-hidden', className)}>
+      <div className="px-3 py-2 bg-white/50 dark:bg-gray-800/50 border-b font-semibold text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wider flex justify-between items-center">
         {title}
-        <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-[10px]">
+        <span className="bg-white/80 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-[10px]">
           {tasks.length}
         </span>
       </div>
@@ -70,7 +70,7 @@ export const Quadrant: React.FC<QuadrantProps> = ({
           />
         ))}
         {tasks.length === 0 && !isAdding && (
-          <div className="text-center py-4 text-gray-400 text-xs italic">
+          <div className="text-center py-4 text-gray-500/50 text-xs italic">
             暂无任务
           </div>
         )}
@@ -78,7 +78,7 @@ export const Quadrant: React.FC<QuadrantProps> = ({
 
       {/* Frozen Add Row */}
       <div 
-        className="border-t p-2 bg-gray-50 dark:bg-gray-800 cursor-text hover:bg-gray-100 transition-colors"
+        className="border-t p-2 bg-white/50 dark:bg-gray-800/50 cursor-text hover:bg-white/80 dark:hover:bg-gray-800 transition-colors"
         onClick={() => setIsAdding(true)}
       >
         {isAdding ? (
