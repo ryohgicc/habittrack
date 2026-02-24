@@ -86,12 +86,16 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
       appState.status = 'in_progress';
       appState.currentTaskId = message.payload.taskId;
       appState.startTime = Date.now();
-      appState.savedDuration = 0; // Starting new session for this task
       
-      // Update task status
+      // Update task status and set savedDuration to accumulated duration
       const taskIndex = appState.tasks.findIndex(t => t.id === message.payload.taskId);
       if (taskIndex !== -1) {
         appState.tasks[taskIndex].status = 'in_progress';
+        // When starting a task, we want the displayed timer to include past duration
+        // savedDuration is used in UI as the base value.
+        appState.savedDuration = appState.tasks[taskIndex].duration;
+      } else {
+        appState.savedDuration = 0;
       }
       saveState();
       break;

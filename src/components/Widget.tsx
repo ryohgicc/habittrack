@@ -85,6 +85,13 @@ const Widget: React.FC = () => {
   };
 
   const currentTask = state.tasks.find(t => t.id === state.currentTaskId);
+
+  const quadrantNames: Record<string, string> = {
+    urgent_important: '紧急且重要',
+    important_not_urgent: '重要不紧急',
+    urgent_not_important: '紧急不重要',
+    not_urgent_not_important: '不重要不紧急'
+  };
   
   if (loading) return null;
 
@@ -127,7 +134,16 @@ const Widget: React.FC = () => {
           ) : (
             <div className="flex flex-col">
               <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
-                {state.status === 'in_progress' ? '专注中' : state.status === 'resting' ? '休息中' : '准备就绪'}
+                {state.status === 'in_progress' ? (
+                  <>
+                    <span>专注中</span>
+                    {currentTask && (
+                      <span className="ml-1 text-[10px] font-normal opacity-75">
+                         - {quadrantNames[currentTask.quadrant]}
+                      </span>
+                    )}
+                  </>
+                ) : state.status === 'resting' ? '休息中' : '准备就绪'}
               </span>
               <span className="text-sm font-semibold truncate text-gray-800 dark:text-gray-100">
                  {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? '休息一下' : '请选择一个任务'}
@@ -188,7 +204,7 @@ const Widget: React.FC = () => {
           <div className="h-full grid grid-cols-2 grid-rows-2 gap-px bg-gray-200 dark:bg-gray-700">
             <Quadrant
               title="紧急且重要"
-              className="bg-red-50/50 dark:bg-red-900/10"
+              className="bg-red-50 dark:bg-red-900/20"
               tasks={state.tasks.filter(t => t.quadrant === 'urgent_important')}
               quadrant="urgent_important"
               currentTaskId={state.currentTaskId}
@@ -199,7 +215,7 @@ const Widget: React.FC = () => {
             />
             <Quadrant
               title="重要不紧急"
-              className="bg-blue-50/50 dark:bg-blue-900/10"
+              className="bg-blue-50 dark:bg-blue-900/20"
               tasks={state.tasks.filter(t => t.quadrant === 'important_not_urgent')}
               quadrant="important_not_urgent"
               currentTaskId={state.currentTaskId}
@@ -210,7 +226,7 @@ const Widget: React.FC = () => {
             />
             <Quadrant
               title="紧急不重要"
-              className="bg-yellow-50/50 dark:bg-yellow-900/10"
+              className="bg-yellow-50 dark:bg-yellow-900/20"
               tasks={state.tasks.filter(t => t.quadrant === 'urgent_not_important')}
               quadrant="urgent_not_important"
               currentTaskId={state.currentTaskId}
@@ -221,7 +237,7 @@ const Widget: React.FC = () => {
             />
             <Quadrant
               title="不重要不紧急"
-              className="bg-gray-50/50 dark:bg-gray-900/10"
+              className="bg-gray-50 dark:bg-gray-900/20"
               tasks={state.tasks.filter(t => t.quadrant === 'not_urgent_not_important')}
               quadrant="not_urgent_not_important"
               currentTaskId={state.currentTaskId}
