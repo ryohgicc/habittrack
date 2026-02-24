@@ -45,10 +45,15 @@ export function useExtensionState() {
     chrome.runtime.sendMessage({ type: 'TOGGLE_MINIMIZED' });
   };
 
+  const deleteTask = (taskId: string) => {
+    chrome.runtime.sendMessage({ type: 'DELETE_TASK', payload: { taskId } });
+  };
+
   return {
     state,
     loading,
     addTask,
+    deleteTask,
     startTask,
     startRest,
     stopAll,

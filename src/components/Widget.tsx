@@ -6,8 +6,64 @@ import clsx from 'clsx';
 import { Minus, PieChart, Pause, Square, ChevronLeft } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, startTask, startRest, stopAll, toggleMinimized } = useExtensionState();
+  const { state, loading, addTask, deleteTask, startTask, startRest, stopAll, toggleMinimized } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
+  
+  // We need a global "now" to update all active timers in sync
+  const [now, setNow] = useState(Date.now());
+  React.useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Dragging logic
+  const [dragState, setDragState] = useState({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    initialRight: 20,
+    initialBottom: 20,
+    currentRight: 20,
+    currentBottom: 20,
+  });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setDragState(prev => ({
+      ...prev,
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialRight: prev.currentRight,
+      initialBottom: prev.currentBottom,
+    }));
+  };
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (dragState.isDragging) {
+        const deltaX = dragState.startX - e.clientX; // Moving left increases right value
+        const deltaY = dragState.startY - e.clientY; // Moving up increases bottom value
+        setDragState(prev => ({
+          ...prev,
+          currentRight: prev.initialRight + deltaX,
+          currentBottom: prev.initialBottom + deltaY,
+        }));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDragState(prev => ({ ...prev, isDragging: false }));
+    };
+
+    if (dragState.isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.initialRight, dragState.initialBottom]);
 
   // Helper to format duration for tasks
   const formatDuration = (ms: number) => {
@@ -20,13 +76,6 @@ const Widget: React.FC = () => {
     }
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
-  
-  // We need a global "now" to update all active timers in sync
-  const [now, setNow] = useState(Date.now());
-  React.useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const getActiveTaskDuration = (task: Task) => {
     if (state.status === 'in_progress' && state.currentTaskId === task.id && state.startTime) {
@@ -42,8 +91,12 @@ const Widget: React.FC = () => {
   if (state.isMinimized) {
     return (
       <div 
-        className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 shadow-lg rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform z-[2147483647]"
-        onClick={toggleMinimized}
+        className="fixed bg-white dark:bg-gray-800 shadow-lg rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform z-[2147483647]"
+        style={{ right: dragState.currentRight, bottom: dragState.currentBottom, userSelect: 'none' }}
+        onMouseDown={handleMouseDown}
+        onClick={() => {
+          if (!dragState.isDragging) toggleMinimized();
+        }}
       >
         <div className={clsx("w-2 h-2 rounded-full", state.status === 'in_progress' ? 'bg-green-500' : state.status === 'resting' ? 'bg-blue-500' : 'bg-gray-400')} />
         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -57,9 +110,15 @@ const Widget: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 w-[400px] h-[500px] bg-white dark:bg-gray-900 shadow-2xl rounded-xl flex flex-col border border-gray-200 dark:border-gray-700 overflow-hidden z-[2147483647] font-sans">
+    <div 
+      className="fixed w-[400px] h-[500px] bg-white dark:bg-gray-900 shadow-2xl rounded-xl flex flex-col border border-gray-200 dark:border-gray-700 overflow-hidden z-[2147483647] font-sans"
+      style={{ right: dragState.currentRight, bottom: dragState.currentBottom }}
+    >
       {/* Header */}
-      <div className="h-14 bg-gray-50 dark:bg-gray-800 border-b flex items-center justify-between px-4 shrink-0">
+      <div 
+        className="h-14 bg-gray-50 dark:bg-gray-800 border-b flex items-center justify-between px-4 shrink-0 cursor-move select-none"
+        onMouseDown={handleMouseDown}
+      >
         <div className="flex items-center space-x-2 overflow-hidden">
           {showStats ? (
              <button onClick={() => setShowStats(false)} className="p-1 hover:bg-gray-200 rounded-full">
@@ -134,6 +193,7 @@ const Widget: React.FC = () => {
               quadrant="urgent_important"
               currentTaskId={state.currentTaskId}
               onStartTask={startTask}
+              onDeleteTask={deleteTask}
               onAddTask={addTask}
               formatDuration={getActiveTaskDuration}
             />
@@ -144,6 +204,7 @@ const Widget: React.FC = () => {
               quadrant="important_not_urgent"
               currentTaskId={state.currentTaskId}
               onStartTask={startTask}
+              onDeleteTask={deleteTask}
               onAddTask={addTask}
               formatDuration={getActiveTaskDuration}
             />
@@ -154,6 +215,7 @@ const Widget: React.FC = () => {
               quadrant="urgent_not_important"
               currentTaskId={state.currentTaskId}
               onStartTask={startTask}
+              onDeleteTask={deleteTask}
               onAddTask={addTask}
               formatDuration={getActiveTaskDuration}
             />
@@ -164,6 +226,7 @@ const Widget: React.FC = () => {
               quadrant="not_urgent_not_important"
               currentTaskId={state.currentTaskId}
               onStartTask={startTask}
+              onDeleteTask={deleteTask}
               onAddTask={addTask}
               formatDuration={getActiveTaskDuration}
             />

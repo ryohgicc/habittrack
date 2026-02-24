@@ -65,6 +65,20 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
       saveState();
       break;
 
+    case 'DELETE_TASK':
+      const taskToDeleteId = message.payload.taskId;
+      // If the task to delete is currently running, stop the timer first
+      if (appState.currentTaskId === taskToDeleteId && appState.status === 'in_progress') {
+        stopCurrentTimer();
+        appState.status = 'resting'; // Revert to resting or idle? Let's go to resting or just stop.
+        appState.status = 'ended'; // Let's stop.
+        appState.currentTaskId = null;
+        appState.startTime = null;
+      }
+      appState.tasks = appState.tasks.filter(t => t.id !== taskToDeleteId);
+      saveState();
+      break;
+
     case 'START_TASK':
       // Stop current timer (rest or other task)
       stopCurrentTimer();

@@ -9,6 +9,7 @@ interface QuadrantProps {
   quadrant: QuadrantType;
   currentTaskId: string | null;
   onStartTask: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
   onAddTask: (title: string, quadrant: QuadrantType) => void;
   formatDuration: (task: Task) => string;
   className?: string;
@@ -20,6 +21,7 @@ export const Quadrant: React.FC<QuadrantProps> = ({
   quadrant,
   currentTaskId,
   onStartTask,
+  onDeleteTask,
   onAddTask,
   formatDuration,
   className,
@@ -63,6 +65,7 @@ export const Quadrant: React.FC<QuadrantProps> = ({
             task={task}
             isActive={currentTaskId === task.id}
             onStart={onStartTask}
+            onDelete={onDeleteTask}
             formatDuration={formatDuration}
           />
         ))}
