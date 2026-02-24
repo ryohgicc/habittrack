@@ -1,27 +1,48 @@
-# Global Four-Quadrant Focus Timer Browser Plugin (HabitTrack)
+# 全局四象限专注计时浏览器插件 (HabitTrack)
 
-A browser extension that helps you manage your time using the Eisenhower Matrix directly on any webpage.
+这是一款基于浏览器全局注入的时间管理插件，帮助你在浏览任何网页时都能使用“艾森豪威尔矩阵”来管理任务和时间。
 
-## Features
+## ✨ 核心功能
 
-- **Global Overlay**: Accessible on any website.
-- **Eisenhower Matrix**: Organize tasks by Urgency and Importance.
-- **Focus Timer**: Track time spent on tasks.
-- **Sync**: Real-time synchronization across all browser tabs.
-- **Statistics**: View daily focus and rest time.
+- **🌍 全局悬浮展示**：插件界面作为一个悬浮窗嵌入在所有打开的网页中，随时随地触手可及。
+- **📊 艾森豪威尔矩阵**：通过“紧急且重要”、“重要不紧急”等四个象限科学分类和管理任务。
+- **⏱️ 专注计时器**：内置正向计时功能，精确记录每个任务的投入时间。
+- **🔄 实时同步**：所有浏览器标签页状态实时同步，无论切换到哪里，计时和任务状态都保持一致。
+- **📈 每日统计**：自动统计每日的专注时长与休息时长，助你复盘时间开销。
+- **🛡️ 样式隔离**：采用 Shadow DOM 技术，确保插件样式不受宿主网页影响，始终美观统一。
 
-## Tech Stack
+## 🛠️ 技术栈
 
 - React
 - TypeScript
 - Vite
 - Tailwind CSS
 - Chrome Extension Manifest V3
-- Shadow DOM (for style isolation)
+- Shadow DOM (用于样式隔离)
 
-## Installation
+## 🚀 安装与使用
 
-1. Clone the repository.
-2. Run `npm install`.
-3. Run `npm run build`.
-4. Load the `dist` folder as an unpacked extension in Chrome.
+1. **克隆仓库**：下载本项目代码到本地。
+2. **安装依赖**：
+   ```bash
+   npm install
+   ```
+3. **构建项目**：
+   ```bash
+   npm run build
+   ```
+4. **加载插件**：
+   - 打开 Chrome 浏览器，访问 `chrome://extensions/`。
+   - 开启右上角的“开发者模式”。
+   - 点击“加载已解压的扩展程序”。
+   - 选择项目目录下的 `dist` 文件夹。
+
+## 📝 开发说明
+
+- **`src/background/`**: Service Worker 逻辑，负责状态管理和计时器核心。
+- **`src/content/`**: Content Script，负责将 UI 注入到网页中。
+- **`src/components/`**: React UI 组件。
+- **`src/hooks/`**: 自定义 React Hooks，用于处理状态同步和计时逻辑。
+
+---
+*即刻开始，掌控你的时间！*
