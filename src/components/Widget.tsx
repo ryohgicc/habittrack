@@ -9,6 +9,25 @@ const Widget: React.FC = () => {
   const { state, loading, addTask, deleteTask, startTask, startRest, stopAll, toggleMinimized } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
   
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+
+  const confirmDelete = (taskId: string) => {
+    setTaskToDelete(taskId);
+  };
+
+  const cancelDelete = () => {
+    setTaskToDelete(null);
+  };
+
+  const executeDelete = () => {
+    if (taskToDelete) {
+      deleteTask(taskToDelete);
+      setTaskToDelete(null);
+    }
+  };
+  
+
+  
   // We need a global "now" to update all active timers in sync
   const [now, setNow] = useState(Date.now());
   React.useEffect(() => {
@@ -115,23 +134,6 @@ const Widget: React.FC = () => {
       </div>
     );
   }
-
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-
-  const confirmDelete = (taskId: string) => {
-    setTaskToDelete(taskId);
-  };
-
-  const cancelDelete = () => {
-    setTaskToDelete(null);
-  };
-
-  const executeDelete = () => {
-    if (taskToDelete) {
-      deleteTask(taskToDelete);
-      setTaskToDelete(null);
-    }
-  };
 
   return (
     <>
