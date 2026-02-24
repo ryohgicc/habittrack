@@ -47,7 +47,7 @@ const Widget: React.FC = () => {
       >
         <div className={clsx("w-2 h-2 rounded-full", state.status === 'in_progress' ? 'bg-green-500' : state.status === 'resting' ? 'bg-blue-500' : 'bg-gray-400')} />
         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-          {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? 'Resting' : 'Idle'}
+          {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? '休息中' : '空闲'}
         </span>
         <span className="text-xs text-gray-500 font-mono">
           {state.startTime ? formatDuration(state.savedDuration + (now - state.startTime)) : formatDuration(0)}
@@ -68,10 +68,10 @@ const Widget: React.FC = () => {
           ) : (
             <div className="flex flex-col">
               <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
-                {state.status === 'in_progress' ? 'Focusing' : state.status === 'resting' ? 'Resting' : 'Ready'}
+                {state.status === 'in_progress' ? '专注中' : state.status === 'resting' ? '休息中' : '准备就绪'}
               </span>
               <span className="text-sm font-semibold truncate text-gray-800 dark:text-gray-100">
-                 {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? 'Take a break' : 'Select a task'}
+                 {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? '休息一下' : '请选择一个任务'}
               </span>
             </div>
           )}
@@ -96,31 +96,39 @@ const Widget: React.FC = () => {
       <div className="flex-1 overflow-hidden relative">
         {showStats ? (
           <div className="absolute inset-0 p-6 overflow-y-auto bg-white dark:bg-gray-900">
-             <h2 className="text-lg font-bold mb-4">Today's Statistics</h2>
+             <h2 className="text-lg font-bold mb-4">今日统计</h2>
              <div className="grid grid-cols-2 gap-4 mb-6">
                <div className="bg-blue-50 p-4 rounded-lg">
-                 <div className="text-xs text-blue-500 uppercase mb-1">Focus Time</div>
+                 <div className="text-xs text-blue-500 uppercase mb-1">专注时长</div>
                  <div className="text-2xl font-mono font-bold text-blue-700">{formatDuration(state.statistics.focusTime)}</div>
                </div>
                <div className="bg-green-50 p-4 rounded-lg">
-                 <div className="text-xs text-green-500 uppercase mb-1">Rest Time</div>
+                 <div className="text-xs text-green-500 uppercase mb-1">休息时长</div>
                  <div className="text-2xl font-mono font-bold text-green-700">{formatDuration(state.statistics.restTime)}</div>
                </div>
              </div>
-             <h3 className="text-sm font-semibold mb-3 text-gray-500 uppercase">Quadrant Breakdown</h3>
+             <h3 className="text-sm font-semibold mb-3 text-gray-500 uppercase">象限分布</h3>
              <div className="space-y-3">
-               {Object.entries(state.statistics.quadrantFocusTime).map(([key, value]) => (
-                 <div key={key} className="flex items-center justify-between text-sm">
-                   <span className="capitalize text-gray-600">{key.replace(/_/g, ' ')}</span>
-                   <span className="font-mono font-medium">{formatDuration(value)}</span>
-                 </div>
-               ))}
+               {Object.entries(state.statistics.quadrantFocusTime).map(([key, value]) => {
+                 const quadrantNames: Record<string, string> = {
+                    urgent_important: '紧急且重要',
+                    important_not_urgent: '重要不紧急',
+                    urgent_not_important: '紧急不重要',
+                    not_urgent_not_important: '不重要不紧急'
+                 };
+                 return (
+                   <div key={key} className="flex items-center justify-between text-sm">
+                     <span className="capitalize text-gray-600">{quadrantNames[key] || key}</span>
+                     <span className="font-mono font-medium">{formatDuration(value)}</span>
+                   </div>
+                 );
+               })}
              </div>
           </div>
         ) : (
           <div className="h-full grid grid-cols-2 grid-rows-2 gap-px bg-gray-200 dark:bg-gray-700">
             <Quadrant
-              title="Urgent & Important"
+              title="紧急且重要"
               className="bg-red-50/50 dark:bg-red-900/10"
               tasks={state.tasks.filter(t => t.quadrant === 'urgent_important')}
               quadrant="urgent_important"
@@ -130,7 +138,7 @@ const Widget: React.FC = () => {
               formatDuration={getActiveTaskDuration}
             />
             <Quadrant
-              title="Not Urgent & Important"
+              title="重要不紧急"
               className="bg-blue-50/50 dark:bg-blue-900/10"
               tasks={state.tasks.filter(t => t.quadrant === 'important_not_urgent')}
               quadrant="important_not_urgent"
@@ -140,7 +148,7 @@ const Widget: React.FC = () => {
               formatDuration={getActiveTaskDuration}
             />
             <Quadrant
-              title="Urgent & Not Important"
+              title="紧急不重要"
               className="bg-yellow-50/50 dark:bg-yellow-900/10"
               tasks={state.tasks.filter(t => t.quadrant === 'urgent_not_important')}
               quadrant="urgent_not_important"
@@ -150,7 +158,7 @@ const Widget: React.FC = () => {
               formatDuration={getActiveTaskDuration}
             />
             <Quadrant
-              title="Not Urgent & Not Important"
+              title="不重要不紧急"
               className="bg-gray-50/50 dark:bg-gray-900/10"
               tasks={state.tasks.filter(t => t.quadrant === 'not_urgent_not_important')}
               quadrant="not_urgent_not_important"
@@ -176,7 +184,7 @@ const Widget: React.FC = () => {
            )}
          >
            <Pause size={16} className="mr-1" />
-           Rest
+           休息
          </button>
          <button 
            onClick={stopAll}
@@ -189,7 +197,7 @@ const Widget: React.FC = () => {
            )}
          >
            <Square size={16} className="mr-1" />
-           End
+           结束
          </button>
       </div>
     </div>

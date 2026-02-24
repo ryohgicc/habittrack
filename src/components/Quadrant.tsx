@@ -68,7 +68,7 @@ export const Quadrant: React.FC<QuadrantProps> = ({
         ))}
         {tasks.length === 0 && !isAdding && (
           <div className="text-center py-4 text-gray-400 text-xs italic">
-            No tasks yet
+            暂无任务
           </div>
         )}
       </div>
@@ -86,13 +86,13 @@ export const Quadrant: React.FC<QuadrantProps> = ({
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
-            placeholder="Type task & Enter..."
+            placeholder="输入任务并回车..."
             className="w-full text-sm bg-transparent border-none outline-none placeholder-gray-400 text-gray-800 dark:text-gray-200"
           />
         ) : (
           <div className="flex items-center text-sm text-gray-500 hover:text-blue-600">
             <Plus size={14} className="mr-1" />
-            Add Task
+            添加任务
           </div>
         )}
       </div>
