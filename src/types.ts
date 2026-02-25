@@ -29,6 +29,8 @@ export interface AppState {
   startTime: number | null; // timestamp when current timer started (focus or rest)
   savedDuration: number; // accumulated duration for current session before pause/stop
   statistics: Statistics;
+  history: Record<string, Statistics>; // Historical statistics by date (YYYY-MM-DD)
+  selectedDate: string; // Date to display statistics for
   lastResetDate: string; // to track daily reset
 }
 
@@ -49,5 +51,7 @@ export const INITIAL_STATE: AppState = {
       not_urgent_not_important: 0,
     },
   },
+  history: {},
+  selectedDate: new Date().toDateString(),
   lastResetDate: new Date().toDateString(),
 };

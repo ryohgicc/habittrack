@@ -3,10 +3,10 @@ import { useExtensionState } from '../hooks/useExtensionState';
 import { Quadrant } from './Quadrant';
 import type { Task } from '../types';
 import clsx from 'clsx';
-import { Minus, PieChart, Pause, Square, ChevronLeft } from 'lucide-react';
+import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, deleteTask, startTask, startRest, stopAll, toggleMinimized } = useExtensionState();
+  const { state, loading, addTask, deleteTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
   
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
@@ -35,46 +35,135 @@ const Widget: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Dragging logic
-  const [dragState, setDragState] = useState({
+  // Dragging & Resizing logic
+  const [windowState, setWindowState] = useState({
+    // Position
+    right: 20,
+    bottom: 20,
+    // Size
+    width: 400,
+    height: 500,
+    // Interaction state
     isDragging: false,
+    isResizing: false,
+    resizeDirection: null as string | null,
     startX: 0,
     startY: 0,
     initialRight: 20,
     initialBottom: 20,
-    currentRight: 20,
-    currentBottom: 20,
+    initialWidth: 400,
+    initialHeight: 500,
   });
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    setDragState(prev => ({
+    // Only start dragging if not resizing and not clicking on interactive elements
+    if (windowState.isResizing) return;
+    
+    // Check if click target is interactive (button, etc)
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    setWindowState(prev => ({
       ...prev,
       isDragging: true,
       startX: e.clientX,
       startY: e.clientY,
-      initialRight: prev.currentRight,
-      initialBottom: prev.currentBottom,
+      initialRight: prev.right,
+      initialBottom: prev.bottom,
+    }));
+  };
+
+  const handleResizeStart = (e: React.MouseEvent, direction: string) => {
+    e.stopPropagation(); // Prevent drag start
+    setWindowState(prev => ({
+      ...prev,
+      isResizing: true,
+      resizeDirection: direction,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialRight: prev.right,
+      initialBottom: prev.bottom,
+      initialWidth: prev.width,
+      initialHeight: prev.height,
     }));
   };
 
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (dragState.isDragging) {
-        const deltaX = dragState.startX - e.clientX; // Moving left increases right value
-        const deltaY = dragState.startY - e.clientY; // Moving up increases bottom value
-        setDragState(prev => ({
+      if (windowState.isDragging) {
+        const deltaX = windowState.startX - e.clientX; // Moving left increases right value
+        const deltaY = windowState.startY - e.clientY; // Moving up increases bottom value
+        setWindowState(prev => ({
           ...prev,
-          currentRight: prev.initialRight + deltaX,
-          currentBottom: prev.initialBottom + deltaY,
+          right: prev.initialRight + deltaX,
+          bottom: prev.initialBottom + deltaY,
         }));
+      } else if (windowState.isResizing) {
+        const deltaX = e.clientX - windowState.startX;
+        const deltaY = e.clientY - windowState.startY;
+        
+        setWindowState(prev => {
+          let newWidth = prev.initialWidth;
+          let newHeight = prev.initialHeight;
+          let newRight = prev.initialRight;
+          let newBottom = prev.initialBottom;
+
+          // Horizontal resizing
+          if (prev.resizeDirection?.includes('w')) {
+            // Left edge: dragging left (negative deltaX) increases width
+            newWidth = prev.initialWidth - deltaX;
+            // Right position doesn't change
+          } else if (prev.resizeDirection?.includes('e')) {
+            // Right edge: dragging right (positive deltaX) increases width
+            // But since we are positioned by 'right', increasing width while keeping 'right' fixed
+            // would expand to the left. We want to expand to the right.
+            // So we must DECREASE 'right' by the same amount we INCREASE 'width'.
+            newWidth = prev.initialWidth + deltaX;
+            newRight = prev.initialRight - deltaX;
+          }
+
+          // Vertical resizing
+          if (prev.resizeDirection?.includes('n')) {
+            // Top edge: dragging up (negative deltaY) increases height
+            newHeight = prev.initialHeight - deltaY;
+            // Bottom position doesn't change
+          } else if (prev.resizeDirection?.includes('s')) {
+            // Bottom edge: dragging down (positive deltaY) increases height
+            // Similar to right edge, we must DECREASE 'bottom'.
+            newHeight = prev.initialHeight + deltaY;
+            newBottom = prev.initialBottom - deltaY;
+          }
+
+          // Min constraints
+          if (newWidth < 300) {
+            newWidth = 300;
+             // If we were adjusting 'right', we need to recalculate it based on the constrained width
+             if (prev.resizeDirection?.includes('e')) {
+                newRight = prev.initialRight - (300 - prev.initialWidth);
+             }
+          }
+          if (newHeight < 400) {
+            newHeight = 400;
+             if (prev.resizeDirection?.includes('s')) {
+                newBottom = prev.initialBottom - (400 - prev.initialHeight);
+             }
+          }
+
+          return {
+            ...prev,
+            width: newWidth,
+            height: newHeight,
+            right: newRight,
+            bottom: newBottom,
+          };
+        });
       }
     };
 
     const handleMouseUp = () => {
-      setDragState(prev => ({ ...prev, isDragging: false }));
+      setWindowState(prev => ({ ...prev, isDragging: false, isResizing: false, resizeDirection: null }));
     };
 
-    if (dragState.isDragging) {
+    if (windowState.isDragging || windowState.isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -82,7 +171,7 @@ const Widget: React.FC = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.initialRight, dragState.initialBottom]);
+  }, [windowState.isDragging, windowState.isResizing, windowState.startX, windowState.startY, windowState.initialRight, windowState.initialBottom, windowState.initialWidth, windowState.initialHeight, windowState.resizeDirection]);
 
   // Helper to format duration for tasks
   const formatDuration = (ms: number) => {
@@ -117,11 +206,11 @@ const Widget: React.FC = () => {
   if (state.isMinimized) {
     return (
       <div 
-        className="fixed bg-white dark:bg-gray-800 shadow-lg rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform z-[2147483647]"
-        style={{ right: dragState.currentRight, bottom: dragState.currentBottom, userSelect: 'none' }}
+        className="fixed pointer-events-auto bg-white dark:bg-gray-800 shadow-lg rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform z-[2147483647]"
+        style={{ right: windowState.right, bottom: windowState.bottom, userSelect: 'none' }}
         onMouseDown={handleMouseDown}
         onClick={() => {
-          if (!dragState.isDragging) toggleMinimized();
+          if (!windowState.isDragging) toggleMinimized();
         }}
       >
         <div className={clsx("w-2 h-2 rounded-full", state.status === 'in_progress' ? 'bg-green-500' : state.status === 'resting' ? 'bg-blue-500' : 'bg-gray-400')} />
@@ -138,12 +227,30 @@ const Widget: React.FC = () => {
   return (
     <>
       <div 
-        className="fixed w-[400px] h-[500px] bg-white dark:bg-gray-900 shadow-2xl rounded-xl flex flex-col border border-gray-200 dark:border-gray-700 overflow-hidden z-[2147483647] font-sans"
-        style={{ right: dragState.currentRight, bottom: dragState.currentBottom }}
+        className="fixed z-[2147483647] font-sans pointer-events-auto flex flex-col"
+        style={{ 
+          right: windowState.right, 
+          bottom: windowState.bottom,
+          width: windowState.width,
+          height: windowState.height
+        }}
       >
+        {/* Resize Handles */}
+        <div className="absolute -top-1 left-0 w-full h-3 cursor-ns-resize z-50 hover:bg-blue-500/10" onMouseDown={(e) => handleResizeStart(e, 'n')} />
+        <div className="absolute -bottom-1 left-0 w-full h-3 cursor-ns-resize z-50 hover:bg-blue-500/10" onMouseDown={(e) => handleResizeStart(e, 's')} />
+        <div className="absolute top-0 -left-1 h-full w-3 cursor-ew-resize z-50 hover:bg-blue-500/10" onMouseDown={(e) => handleResizeStart(e, 'w')} />
+        <div className="absolute top-0 -right-1 h-full w-3 cursor-ew-resize z-50 hover:bg-blue-500/10" onMouseDown={(e) => handleResizeStart(e, 'e')} />
+        
+        {/* Corner Handles */}
+        <div className="absolute -top-1 -left-1 w-5 h-5 cursor-nwse-resize z-50 hover:bg-blue-500/20" onMouseDown={(e) => handleResizeStart(e, 'nw')} />
+        <div className="absolute -top-1 -right-1 w-5 h-5 cursor-nesw-resize z-50 hover:bg-blue-500/20" onMouseDown={(e) => handleResizeStart(e, 'ne')} />
+        <div className="absolute -bottom-1 -left-1 w-5 h-5 cursor-nesw-resize z-50 hover:bg-blue-500/20" onMouseDown={(e) => handleResizeStart(e, 'sw')} />
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize z-50 hover:bg-blue-500/20" onMouseDown={(e) => handleResizeStart(e, 'se')} />
+
+        <div className="flex-1 flex flex-col bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden relative">
         {/* Header */}
         <div 
-          className="h-14 bg-gray-50 dark:bg-gray-800 border-b flex items-center justify-between px-4 shrink-0 cursor-move select-none"
+          className="h-14 bg-gray-50 dark:bg-gray-800 border-b flex items-center justify-between px-4 shrink-0 cursor-move select-none relative z-40"
           onMouseDown={handleMouseDown}
         >
           <div className="flex items-center space-x-2 overflow-hidden">
@@ -191,40 +298,96 @@ const Widget: React.FC = () => {
         <div className="flex-1 overflow-hidden relative">
           {showStats ? (
             <div className="absolute inset-0 p-6 overflow-y-auto bg-white dark:bg-gray-900">
-               <h2 className="text-lg font-bold mb-4">今日统计</h2>
-               <div className="grid grid-cols-2 gap-4 mb-6">
-                 <div className="bg-blue-50 p-4 rounded-lg">
-                   <div className="text-xs text-blue-500 uppercase mb-1">专注时长</div>
-                   <div className="text-2xl font-mono font-bold text-blue-700">{formatDuration(state.statistics.focusTime)}</div>
-                 </div>
-                 <div className="bg-green-50 p-4 rounded-lg">
-                   <div className="text-xs text-green-500 uppercase mb-1">休息时长</div>
-                   <div className="text-2xl font-mono font-bold text-green-700">{formatDuration(state.statistics.restTime)}</div>
-                 </div>
+               <div className="flex items-center justify-between mb-4">
+                 <button 
+                   onClick={() => {
+                     const date = new Date(state.selectedDate || new Date());
+                     date.setDate(date.getDate() - 1);
+                     setSelectedDate(date.toDateString());
+                   }}
+                   className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                 >
+                   <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400" />
+                 </button>
+                 <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                   {(!state.selectedDate || new Date(state.selectedDate).toDateString() === new Date().toDateString()) 
+                     ? '今日统计' 
+                     : state.selectedDate}
+                 </h2>
+                 <button 
+                   onClick={() => {
+                     const date = new Date(state.selectedDate || new Date());
+                     date.setDate(date.getDate() + 1);
+                     const today = new Date();
+                     today.setHours(0,0,0,0);
+                     if (date <= today) {
+                        setSelectedDate(date.toDateString());
+                     }
+                   }}
+                   disabled={!state.selectedDate || new Date(state.selectedDate).toDateString() === new Date().toDateString()}
+                   className={clsx(
+                     "p-1 rounded transition-colors", 
+                     (!state.selectedDate || new Date(state.selectedDate).toDateString() === new Date().toDateString())
+                       ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                       : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                   )}
+                 >
+                   <ChevronRight size={20} />
+                 </button>
                </div>
-               <h3 className="text-sm font-semibold mb-3 text-gray-500 uppercase">象限分布</h3>
-               <div className="space-y-3">
-                 {Object.entries(state.statistics.quadrantFocusTime).map(([key, value]) => {
-                   const quadrantNames: Record<string, string> = {
-                      urgent_important: '紧急且重要',
-                      important_not_urgent: '重要不紧急',
-                      urgent_not_important: '紧急不重要',
-                      not_urgent_not_important: '不重要不紧急'
-                   };
-                   const totalFocusTime = state.statistics.focusTime;
-                   const percentage = totalFocusTime > 0 ? Math.round((value / totalFocusTime) * 100) : 0;
-                   
-                   return (
-                     <div key={key} className="flex items-center justify-between text-sm">
-                       <span className="capitalize text-gray-600">{quadrantNames[key] || key}</span>
-                       <div className="flex items-center space-x-2">
-                         <span className="text-xs text-gray-400">({percentage}%)</span>
-                         <span className="font-mono font-medium">{formatDuration(value)}</span>
+
+               {(() => {
+                 const displayedStats = (!state.selectedDate || new Date(state.selectedDate).toDateString() === new Date().toDateString())
+                    ? state.statistics
+                    : state.history?.[state.selectedDate] || {
+                        focusTime: 0,
+                        restTime: 0,
+                        quadrantFocusTime: {
+                          urgent_important: 0,
+                          important_not_urgent: 0,
+                          urgent_not_important: 0,
+                          not_urgent_not_important: 0,
+                        },
+                      };
+                 
+                 return (
+                   <>
+                     <div className="grid grid-cols-2 gap-4 mb-6">
+                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                         <div className="text-xs text-blue-500 uppercase mb-1">专注时长</div>
+                         <div className="text-2xl font-mono font-bold text-blue-700 dark:text-blue-400">{formatDuration(displayedStats.focusTime)}</div>
+                       </div>
+                       <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                         <div className="text-xs text-green-500 uppercase mb-1">休息时长</div>
+                         <div className="text-2xl font-mono font-bold text-green-700 dark:text-green-400">{formatDuration(displayedStats.restTime)}</div>
                        </div>
                      </div>
-                   );
-                 })}
-               </div>
+                     <h3 className="text-sm font-semibold mb-3 text-gray-500 uppercase">象限分布</h3>
+                     <div className="space-y-3">
+                       {Object.entries(displayedStats.quadrantFocusTime).map(([key, value]) => {
+                         const quadrantNames: Record<string, string> = {
+                            urgent_important: '紧急且重要',
+                            important_not_urgent: '重要不紧急',
+                            urgent_not_important: '紧急不重要',
+                            not_urgent_not_important: '不重要不紧急'
+                         };
+                         const totalFocusTime = displayedStats.focusTime;
+                         const percentage = totalFocusTime > 0 ? Math.round((value / totalFocusTime) * 100) : 0;
+                         
+                         return (
+                           <div key={key} className="flex items-center justify-between text-sm">
+                             <span className="capitalize text-gray-600 dark:text-gray-400">{quadrantNames[key] || key}</span>
+                             <div className="flex items-center space-x-2">
+                               <span className="text-xs text-gray-400">({percentage}%)</span>
+                               <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{formatDuration(value)}</span>
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </>
+                 );
+               })()}
             </div>
           ) : (
             <div className="h-full grid grid-cols-2 grid-rows-2 gap-px bg-gray-200 dark:bg-gray-700">
@@ -305,11 +468,12 @@ const Widget: React.FC = () => {
              结束
            </button>
         </div>
+        </div>
       </div>
       
       {/* Delete Confirmation Dialog */}
       {taskToDelete && (
-        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans">
+        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans pointer-events-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transform scale-100 transition-all">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">确认删除?</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">

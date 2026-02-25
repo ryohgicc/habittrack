@@ -35,8 +35,11 @@ root.render(
         all: initial;
         z-index: 2147483647;
         position: fixed;
-        bottom: 20px;
-        right: 20px;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
         font-family: system-ui, -apple-system, sans-serif;
       }
     `}</style>

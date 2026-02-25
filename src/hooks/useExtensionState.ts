@@ -45,6 +45,10 @@ export function useExtensionState() {
     chrome.runtime.sendMessage({ type: 'TOGGLE_MINIMIZED' });
   };
 
+  const setSelectedDate = (date: string) => {
+    chrome.runtime.sendMessage({ type: 'SET_SELECTED_DATE', payload: { date } });
+  };
+
   const deleteTask = (taskId: string) => {
     chrome.runtime.sendMessage({ type: 'DELETE_TASK', payload: { taskId } });
   };
@@ -58,5 +62,6 @@ export function useExtensionState() {
     startRest,
     stopAll,
     toggleMinimized,
+    setSelectedDate,
   };
 }

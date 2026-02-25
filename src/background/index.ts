@@ -7,6 +7,10 @@ let appState: AppState = { ...INITIAL_STATE };
 chrome.storage.local.get(['appState'], (result) => {
   if (result.appState) {
     appState = result.appState as AppState;
+    // Migration for new fields
+    if (!appState.history) appState.history = {};
+    if (!appState.selectedDate) appState.selectedDate = new Date().toDateString();
+    
     checkDailyReset();
   } else {
     saveState();
@@ -30,6 +34,10 @@ function saveState() {
 function checkDailyReset() {
   const today = new Date().toDateString();
   if (appState.lastResetDate !== today) {
+    // Save previous day's statistics
+    if (!appState.history) appState.history = {};
+    appState.history[appState.lastResetDate] = { ...appState.statistics };
+
     appState.statistics = {
       focusTime: 0,
       restTime: 0,
@@ -41,6 +49,7 @@ function checkDailyReset() {
       },
     };
     appState.lastResetDate = today;
+    appState.selectedDate = today; // Reset selection to today
     saveState();
   }
 }
@@ -52,6 +61,11 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
       sendResponse(appState);
       break;
     
+    case 'SET_SELECTED_DATE':
+      appState.selectedDate = message.payload.date;
+      saveState();
+      break;
+
     case 'ADD_TASK':
       const newTask: Task = {
         id: crypto.randomUUID(),
