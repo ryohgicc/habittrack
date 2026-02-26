@@ -10,6 +10,8 @@ interface QuadrantProps {
   currentTaskId: string | null;
   onStartTask: (taskId: string) => void;
   onDeleteTask: (taskId: string) => void;
+  onEditTask: (taskId: string, newTitle: string) => void;
+  onCompleteTask: (taskId: string) => void;
   onAddTask: (title: string, quadrant: QuadrantType) => void;
   formatDuration: (task: Task) => string;
   className?: string;
@@ -22,6 +24,8 @@ export const Quadrant: React.FC<QuadrantProps> = ({
   currentTaskId,
   onStartTask,
   onDeleteTask,
+  onEditTask,
+  onCompleteTask,
   onAddTask,
   formatDuration,
   className,
@@ -49,27 +53,32 @@ export const Quadrant: React.FC<QuadrantProps> = ({
     setIsAdding(false);
   };
 
+  // Filter out completed tasks from the active view
+  const activeTasks = tasks.filter(t => t.status !== 'completed');
+
   return (
     <div className={clsx('flex flex-col h-full border rounded-lg overflow-hidden', className)}>
       <div className="px-3 py-2 bg-white/50 dark:bg-gray-800/50 border-b font-semibold text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wider flex justify-between items-center">
         {title}
         <span className="bg-white/80 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-[10px]">
-          {tasks.length}
+          {activeTasks.length}
         </span>
       </div>
       
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {tasks.map((task) => (
+        {activeTasks.map((task) => (
           <TaskItem
             key={task.id}
             task={task}
             isActive={currentTaskId === task.id}
             onStart={onStartTask}
             onDelete={onDeleteTask}
+            onEdit={onEditTask}
+            onComplete={onCompleteTask}
             formatDuration={formatDuration}
           />
         ))}
-        {tasks.length === 0 && !isAdding && (
+        {activeTasks.length === 0 && !isAdding && (
           <div className="text-center py-4 text-gray-500/50 text-xs italic">
             暂无任务
           </div>

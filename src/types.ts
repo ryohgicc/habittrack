@@ -13,10 +13,19 @@ export interface Task {
   createdAt: number;
 }
 
+export interface DailyTaskStats {
+  id: string;
+  title: string;
+  duration: number;
+  quadrant: QuadrantType;
+  status?: 'pending' | 'in_progress' | 'completed';
+}
+
 export interface Statistics {
   focusTime: number; // total focus time in ms
   restTime: number; // total rest time in ms
   quadrantFocusTime: Record<QuadrantType, number>;
+  taskStats: Record<string, DailyTaskStats>; // taskId -> stats
 }
 
 export type AppStatus = 'resting' | 'in_progress' | 'ended';
@@ -50,6 +59,7 @@ export const INITIAL_STATE: AppState = {
       urgent_not_important: 0,
       not_urgent_not_important: 0,
     },
+    taskStats: {},
   },
   history: {},
   selectedDate: new Date().toDateString(),

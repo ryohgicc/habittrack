@@ -3,13 +3,22 @@ import { useExtensionState } from '../hooks/useExtensionState';
 import { Quadrant } from './Quadrant';
 import type { Task } from '../types';
 import clsx from 'clsx';
-import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, deleteTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate } = useExtensionState();
+  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
+  const [expandedQuadrants, setExpandedQuadrants] = useState<Record<string, boolean>>({});
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+
+  const toggleQuadrantExpand = (quadrant: string) => {
+    setExpandedQuadrants(prev => ({
+      ...prev,
+      [quadrant]: !prev[quadrant]
+    }));
+  };
 
   const confirmDelete = (taskId: string) => {
     setTaskToDelete(taskId);
@@ -350,9 +359,65 @@ const Widget: React.FC = () => {
                         },
                       };
                  
+                 // Get completed tasks for the selected date
+                 const completedTasks = displayedStats.taskStats 
+                    ? Object.values(displayedStats.taskStats).filter((t: any) => t.status === 'completed')
+                    : [];
+
                  return (
                    <>
-                     <div className="grid grid-cols-2 gap-4 mb-6">
+                     <div className="flex space-x-2 mb-4">
+                       <button
+                         onClick={() => setShowCompletedTasks(false)}
+                         className={clsx(
+                           "flex-1 py-1.5 text-xs font-medium rounded-md transition-colors",
+                           !showCompletedTasks 
+                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" 
+                             : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                         )}
+                       >
+                         统计概览
+                       </button>
+                       <button
+                         onClick={() => setShowCompletedTasks(true)}
+                         className={clsx(
+                           "flex-1 py-1.5 text-xs font-medium rounded-md transition-colors",
+                           showCompletedTasks 
+                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" 
+                             : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                         )}
+                       >
+                         已完成任务 ({completedTasks.length})
+                       </button>
+                     </div>
+
+                     {showCompletedTasks ? (
+                       <div className="space-y-2">
+                         {completedTasks.length > 0 ? (
+                           completedTasks
+                             .sort((a: any, b: any) => b.duration - a.duration)
+                             .map((task: any) => (
+                               <div key={task.id} className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                 <div className="flex-1 mr-4 overflow-hidden">
+                                   <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" title={task.title}>{task.title}</div>
+                                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 capitalize">
+                                      {quadrantNames[task.quadrant] || task.quadrant}
+                                   </div>
+                                 </div>
+                                 <div className="font-mono font-medium text-blue-600 dark:text-blue-400 text-sm">
+                                   {formatDuration(task.duration)}
+                                 </div>
+                               </div>
+                             ))
+                         ) : (
+                           <div className="text-center py-8 text-gray-400 text-sm italic">
+                             当天没有已完成的任务
+                           </div>
+                         )}
+                       </div>
+                     ) : (
+                       <>
+                         <div className="grid grid-cols-2 gap-4 mb-6">
                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                          <div className="text-xs text-blue-500 uppercase mb-1">专注时长</div>
                          <div className="text-2xl font-mono font-bold text-blue-700 dark:text-blue-400">{formatDuration(displayedStats.focusTime)}</div>
@@ -373,18 +438,55 @@ const Widget: React.FC = () => {
                          };
                          const totalFocusTime = displayedStats.focusTime;
                          const percentage = totalFocusTime > 0 ? Math.round((value / totalFocusTime) * 100) : 0;
+                         const isExpanded = expandedQuadrants[key];
                          
-                         return (
-                           <div key={key} className="flex items-center justify-between text-sm">
-                             <span className="capitalize text-gray-600 dark:text-gray-400">{quadrantNames[key] || key}</span>
-                             <div className="flex items-center space-x-2">
-                               <span className="text-xs text-gray-400">({percentage}%)</span>
-                               <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{formatDuration(value)}</span>
-                             </div>
-                           </div>
+                         // Get tasks for this quadrant
+                          const tasksInQuadrant = (displayedStats.taskStats 
+                            ? Object.values(displayedStats.taskStats)
+                            : []
+                          ).filter((t: any) => t.quadrant === key);
+
+                          return (
+                           <div key={key} className="flex flex-col mb-1">
+                              <div 
+                                className="flex items-center justify-between text-sm py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 transition-colors select-none"
+                                onClick={() => toggleQuadrantExpand(key)}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  {isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                                  <span className="capitalize text-gray-700 dark:text-gray-300 font-medium">{quadrantNames[key] || key}</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs text-gray-400">({percentage}%)</span>
+                                  <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{formatDuration(value)}</span>
+                                </div>
+                              </div>
+                              
+                              {/* Task List for Quadrant */}
+                              {isExpanded && (
+                                <div className="pl-8 pr-2 py-1 space-y-2 bg-gray-50/50 dark:bg-gray-800/30 rounded-b-md mx-1 border-l-2 border-gray-100 dark:border-gray-700">
+                                  {tasksInQuadrant.length > 0 ? (
+                                    tasksInQuadrant
+                                      .sort((a: any, b: any) => b.duration - a.duration)
+                                      .map((task: any) => (
+                                        <div key={task.id} className="flex items-center justify-between text-xs group">
+                                          <span className="text-gray-600 dark:text-gray-400 truncate mr-2 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" title={task.title}>{task.title}</span>
+                                          <span className="font-mono text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">{formatDuration(task.duration)}</span>
+                                        </div>
+                                      ))
+                                  ) : (
+                                    <div className="text-xs text-gray-400 italic py-1">
+                                      无专注记录
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                          );
                        })}
-                     </div>
+                       </div>
+                       </>
+                     )}
                    </>
                  );
                })()}
@@ -399,6 +501,8 @@ const Widget: React.FC = () => {
                 currentTaskId={state.currentTaskId}
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
+                onEditTask={editTask}
+                onCompleteTask={completeTask}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -410,6 +514,8 @@ const Widget: React.FC = () => {
                 currentTaskId={state.currentTaskId}
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
+                onEditTask={editTask}
+                onCompleteTask={completeTask}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -421,6 +527,8 @@ const Widget: React.FC = () => {
                 currentTaskId={state.currentTaskId}
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
+                onEditTask={editTask}
+                onCompleteTask={completeTask}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -432,6 +540,8 @@ const Widget: React.FC = () => {
                 currentTaskId={state.currentTaskId}
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
+                onEditTask={editTask}
+                onCompleteTask={completeTask}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />

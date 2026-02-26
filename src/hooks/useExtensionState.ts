@@ -53,11 +53,21 @@ export function useExtensionState() {
     chrome.runtime.sendMessage({ type: 'DELETE_TASK', payload: { taskId } });
   };
 
+  const editTask = (taskId: string, title: string) => {
+    chrome.runtime.sendMessage({ type: 'EDIT_TASK', payload: { taskId, title } });
+  };
+
+  const completeTask = (taskId: string) => {
+    chrome.runtime.sendMessage({ type: 'COMPLETE_TASK', payload: { taskId } });
+  };
+
   return {
     state,
     loading,
     addTask,
     deleteTask,
+    editTask,
+    completeTask,
     startTask,
     startRest,
     stopAll,

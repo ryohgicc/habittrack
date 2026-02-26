@@ -10,6 +10,7 @@ chrome.storage.local.get(['appState'], (result) => {
     // Migration for new fields
     if (!appState.history) appState.history = {};
     if (!appState.selectedDate) appState.selectedDate = new Date().toDateString();
+    if (!appState.statistics.taskStats) appState.statistics.taskStats = {};
     
     checkDailyReset();
   } else {
@@ -47,7 +48,23 @@ function checkDailyReset() {
         urgent_not_important: 0,
         not_urgent_not_important: 0,
       },
+      taskStats: {},
     };
+    
+    // Reset task durations to 0
+    appState.tasks.forEach(task => {
+      task.duration = 0;
+    });
+
+    // If currently focusing, reset savedDuration to 0 as well
+    if (appState.status === 'in_progress') {
+      appState.savedDuration = 0;
+      // Note: startTime is kept as is. The displayed time will be (now - startTime).
+      // Effectively resetting the "previous accumulated" time.
+    } else if (appState.status === 'resting') {
+       appState.savedDuration = 0;
+    }
+
     appState.lastResetDate = today;
     appState.selectedDate = today; // Reset selection to today
     saveState();
@@ -56,6 +73,9 @@ function checkDailyReset() {
 
 // Handle messages
 chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
+  // Check for daily reset on every interaction to handle day changes while running
+  checkDailyReset();
+
   switch (message.type) {
     case 'GET_STATE':
       sendResponse(appState);
@@ -77,6 +97,50 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
       };
       appState.tasks.push(newTask);
       saveState();
+      break;
+    
+    case 'EDIT_TASK':
+      const taskToEdit = appState.tasks.find(t => t.id === message.payload.taskId);
+      if (taskToEdit) {
+        taskToEdit.title = message.payload.title;
+        // Sync to taskStats if exists
+        if (appState.statistics.taskStats && appState.statistics.taskStats[taskToEdit.id]) {
+          appState.statistics.taskStats[taskToEdit.id].title = message.payload.title;
+        }
+        saveState();
+      }
+      break;
+
+    case 'COMPLETE_TASK':
+      const taskToComplete = appState.tasks.find(t => t.id === message.payload.taskId);
+      if (taskToComplete) {
+        // If running, stop it first
+        if (appState.currentTaskId === taskToComplete.id && appState.status === 'in_progress') {
+           stopCurrentTimer();
+           appState.status = 'resting'; // Or idle
+           appState.currentTaskId = null;
+        }
+        
+        taskToComplete.status = 'completed';
+        
+        // Sync to taskStats if exists
+        if (!appState.statistics.taskStats) {
+            appState.statistics.taskStats = {};
+        }
+        if (!appState.statistics.taskStats[taskToComplete.id]) {
+            appState.statistics.taskStats[taskToComplete.id] = {
+                id: taskToComplete.id,
+                title: taskToComplete.title,
+                duration: taskToComplete.duration,
+                quadrant: taskToComplete.quadrant,
+                status: 'completed'
+            };
+        } else {
+            appState.statistics.taskStats[taskToComplete.id].status = 'completed';
+        }
+        
+        saveState();
+      }
       break;
 
     case 'DELETE_TASK':
@@ -152,9 +216,27 @@ function stopCurrentTimer() {
     if (appState.status === 'in_progress' && appState.currentTaskId) {
       const taskIndex = appState.tasks.findIndex(t => t.id === appState.currentTaskId);
       if (taskIndex !== -1) {
-        appState.tasks[taskIndex].duration += elapsed;
+        const task = appState.tasks[taskIndex];
+        task.duration += elapsed;
         appState.statistics.focusTime += elapsed;
-        appState.statistics.quadrantFocusTime[appState.tasks[taskIndex].quadrant] += elapsed;
+        appState.statistics.quadrantFocusTime[task.quadrant] += elapsed;
+
+        // Update task stats
+        if (!appState.statistics.taskStats) {
+           appState.statistics.taskStats = {};
+        }
+        if (!appState.statistics.taskStats[task.id]) {
+          appState.statistics.taskStats[task.id] = {
+            id: task.id,
+            title: task.title,
+            duration: 0,
+            quadrant: task.quadrant,
+          };
+        }
+        appState.statistics.taskStats[task.id].duration += elapsed;
+        // Also update title and quadrant in case they changed (though title change not implemented yet)
+        appState.statistics.taskStats[task.id].title = task.title;
+        appState.statistics.taskStats[task.id].quadrant = task.quadrant;
       }
     } else if (appState.status === 'resting') {
       appState.statistics.restTime += elapsed;
