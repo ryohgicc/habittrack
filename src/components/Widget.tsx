@@ -3,13 +3,15 @@ import { useExtensionState } from '../hooks/useExtensionState';
 import { Quadrant } from './Quadrant';
 import type { Task } from '../types';
 import clsx from 'clsx';
-import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate } = useExtensionState();
+  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [expandedQuadrants, setExpandedQuadrants] = useState<Record<string, boolean>>({});
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
@@ -94,6 +96,21 @@ const Widget: React.FC = () => {
       initialWidth: prev.width,
       initialHeight: prev.height,
     }));
+  };
+  
+  // Settings Logic
+  const handleAutoStopToggle = () => {
+    updateAutoStopSettings({
+       ...state.autoStopSettings,
+       enabled: !state.autoStopSettings.enabled
+    });
+  };
+
+  const handleAutoStopTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateAutoStopSettings({
+       ...state.autoStopSettings,
+       time: e.target.value
+    });
   };
 
   React.useEffect(() => {
@@ -215,18 +232,18 @@ const Widget: React.FC = () => {
   if (state.isMinimized) {
     return (
       <div 
-        className="fixed pointer-events-auto bg-white dark:bg-gray-800 shadow-lg rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform z-[2147483647]"
+        className="fixed pointer-events-auto bg-white dark:bg-gray-800 shadow-xl rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-2xl hover:scale-105 transition-all z-[2147483647]"
         style={{ right: windowState.right, bottom: windowState.bottom, userSelect: 'none' }}
         onMouseDown={handleMouseDown}
         onClick={() => {
           if (!windowState.isDragging) toggleMinimized();
         }}
       >
-        <div className={clsx("w-2 h-2 rounded-full", state.status === 'in_progress' ? 'bg-green-500' : state.status === 'resting' ? 'bg-blue-500' : 'bg-gray-400')} />
-        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+        <div className={clsx("w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-gray-800", state.status === 'in_progress' ? 'bg-green-500' : state.status === 'resting' ? 'bg-blue-500' : 'bg-gray-400')} />
+        <span className="text-sm font-bold text-gray-800 dark:text-gray-100 drop-shadow-sm">
           {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? '休息中' : '空闲'}
         </span>
-        <span className="text-xs text-gray-500 font-mono">
+        <span className="text-xs text-gray-600 dark:text-gray-300 font-mono font-medium">
           {state.startTime ? formatDuration(state.savedDuration + (now - state.startTime)) : formatDuration(0)}
         </span>
       </div>
@@ -267,6 +284,10 @@ const Widget: React.FC = () => {
                <button onClick={() => setShowStats(false)} className="p-1 hover:bg-gray-200 rounded-full">
                  <ChevronLeft size={18} />
                </button>
+            ) : showSettings ? (
+               <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-gray-200 rounded-full">
+                 <ChevronLeft size={18} />
+               </button>
             ) : (
               <div className="flex flex-col">
                 <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
@@ -282,21 +303,28 @@ const Widget: React.FC = () => {
                   ) : state.status === 'resting' ? '休息中' : '准备就绪'}
                 </span>
                 <span className="text-sm font-semibold truncate text-gray-800 dark:text-gray-100">
-                   {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? '休息一下' : '请选择一个任务'}
+                   {state.status === 'in_progress' ? currentTask?.title : state.status === 'resting' ? '休息一下' : showSettings ? '设置' : '请选择一个任务'}
                 </span>
               </div>
             )}
           </div>
           
           <div className="flex items-center space-x-2">
-             {!showStats && (
+             {!showStats && !showSettings && (
                <div className="text-lg font-mono font-medium text-blue-600 dark:text-blue-400 mr-2">
                  {state.startTime ? formatDuration(state.savedDuration + (now - state.startTime)) : '00:00'}
                </div>
              )}
-             <button onClick={() => setShowStats(!showStats)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600">
-               <PieChart size={18} />
-             </button>
+             {!showSettings && (
+               <button onClick={() => setShowStats(!showStats)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600">
+                 <PieChart size={18} />
+               </button>
+             )}
+             {!showStats && (
+               <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600">
+                 <Settings size={18} />
+               </button>
+             )}
              <button onClick={toggleMinimized} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600">
                <Minus size={18} />
              </button>
@@ -485,11 +513,60 @@ const Widget: React.FC = () => {
                          );
                        })}
                        </div>
+                       {(!state.selectedDate || new Date(state.selectedDate).toDateString() === new Date().toDateString()) && (
+                         <div className="mt-8 mb-4 border-t pt-4 flex justify-center">
+                           <button
+                             onClick={() => setShowResetConfirm(true)}
+                             className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded transition-colors flex items-center"
+                           >
+                             <Square size={12} className="mr-1.5" />
+                             重置今日统计数据
+                           </button>
+                         </div>
+                       )}
                        </>
                      )}
                    </>
                  );
                })()}
+            </div>
+          ) : showSettings ? (
+            <div className="absolute inset-0 p-6 overflow-y-auto bg-white dark:bg-gray-900">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6">设置</h2>
+              
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700 mb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200">自动结束任务</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      防止忘记关闭，每天到达指定时间时自动停止所有任务。
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={state.autoStopSettings?.enabled || false}
+                        onChange={handleAutoStopToggle}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+                
+                {state.autoStopSettings?.enabled && (
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">自动结束时间</span>
+                    <input 
+                      type="time" 
+                      value={state.autoStopSettings?.time || '23:00'}
+                      onChange={handleAutoStopTimeChange}
+                      className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="h-full grid grid-cols-2 grid-rows-2 gap-px bg-gray-200 dark:bg-gray-700">
@@ -581,6 +658,35 @@ const Widget: React.FC = () => {
         </div>
       </div>
       
+      {/* Reset Statistics Confirmation Dialog */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans pointer-events-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transform scale-100 transition-all">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">重置今日数据?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              确定要重置今日的所有统计数据吗？包括任务专注时间和总时长。此操作无法撤销。
+            </p>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                取消
+              </button>
+              <button 
+                onClick={() => {
+                  resetDailyStats();
+                  setShowResetConfirm(false);
+                }}
+                className="flex-1 px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                重置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Dialog */}
       {taskToDelete && (
         <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans pointer-events-auto">

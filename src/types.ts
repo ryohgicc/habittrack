@@ -30,6 +30,11 @@ export interface Statistics {
 
 export type AppStatus = 'resting' | 'in_progress' | 'ended';
 
+export interface AutoStopSettings {
+  enabled: boolean;
+  time: string; // HH:mm format
+}
+
 export interface AppState {
   status: AppStatus;
   isMinimized: boolean;
@@ -41,6 +46,8 @@ export interface AppState {
   history: Record<string, Statistics>; // Historical statistics by date (YYYY-MM-DD)
   selectedDate: string; // Date to display statistics for
   lastResetDate: string; // to track daily reset
+  autoStopSettings: AutoStopSettings;
+  lastAutoStopDate: string | null; // date string when auto-stop was last triggered
 }
 
 export const INITIAL_STATE: AppState = {
@@ -64,4 +71,9 @@ export const INITIAL_STATE: AppState = {
   history: {},
   selectedDate: new Date().toDateString(),
   lastResetDate: new Date().toDateString(),
+  autoStopSettings: {
+    enabled: false,
+    time: '23:00',
+  },
+  lastAutoStopDate: null,
 };

@@ -49,6 +49,10 @@ export function useExtensionState() {
     chrome.runtime.sendMessage({ type: 'SET_SELECTED_DATE', payload: { date } });
   };
 
+  const resetDailyStats = () => {
+    chrome.runtime.sendMessage({ type: 'RESET_DAILY_STATS' });
+  };
+
   const deleteTask = (taskId: string) => {
     chrome.runtime.sendMessage({ type: 'DELETE_TASK', payload: { taskId } });
   };
@@ -59,6 +63,10 @@ export function useExtensionState() {
 
   const completeTask = (taskId: string) => {
     chrome.runtime.sendMessage({ type: 'COMPLETE_TASK', payload: { taskId } });
+  };
+
+  const updateAutoStopSettings = (settings: { enabled: boolean; time: string }) => {
+    chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_STOP_SETTINGS', payload: settings });
   };
 
   return {
@@ -73,5 +81,7 @@ export function useExtensionState() {
     stopAll,
     toggleMinimized,
     setSelectedDate,
+    resetDailyStats,
+    updateAutoStopSettings,
   };
 }
