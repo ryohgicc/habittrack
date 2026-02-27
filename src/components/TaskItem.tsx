@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Task } from '../types';
 import clsx from 'clsx';
-import { Play, Pause, Trash2, Edit2, Check } from 'lucide-react';
+import { Play, Trash2, Edit2, Check, Hourglass } from 'lucide-react';
 
 interface TaskItemProps {
   task: Task;
@@ -144,7 +144,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onStart, onD
         ) : (
           !isEditing && (
             <div className="w-5 flex justify-center">
-               {isActive ? <Pause size={14} className="text-blue-500" /> : <Play size={14} className="text-gray-400 group-hover:text-blue-500" />}
+               {isActive ? <Hourglass size={14} className="text-blue-500 animate-spin-slow" /> : <Play size={14} className="text-gray-400 group-hover:text-blue-500" />}
             </div>
           )
         )}
