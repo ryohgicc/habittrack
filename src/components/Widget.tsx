@@ -12,6 +12,7 @@ const Widget: React.FC = () => {
   const [expandedQuadrants, setExpandedQuadrants] = useState<Record<string, boolean>>({});
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [uiScale, setUiScale] = useState(1);
   
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
@@ -37,6 +38,32 @@ const Widget: React.FC = () => {
     }
   };
   
+  React.useEffect(() => {
+    const computeScale = () => {
+      const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize || '16');
+      if (!rootFontSize || Number.isNaN(rootFontSize)) return 1;
+
+      const probe = document.createElement('div');
+      probe.style.position = 'fixed';
+      probe.style.left = '-10000px';
+      probe.style.top = '-10000px';
+      probe.style.width = '100px';
+      probe.style.height = '1px';
+      probe.style.visibility = 'hidden';
+      probe.style.pointerEvents = 'none';
+      document.documentElement.appendChild(probe);
+      const measured = probe.getBoundingClientRect().width;
+      probe.remove();
+
+      const layoutScale = measured && measured > 0 ? measured / 100 : 1;
+      return Math.min(1, Math.max(0.1, (16 / rootFontSize) / layoutScale));
+    };
+
+    const update = () => setUiScale(computeScale());
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   
   // We need a global "now" to update all active timers in sync
@@ -233,7 +260,7 @@ const Widget: React.FC = () => {
     return (
       <div 
         className="fixed pointer-events-auto bg-white dark:bg-gray-800 shadow-xl rounded-full px-4 py-2 flex items-center space-x-2 cursor-pointer border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-2xl hover:scale-105 transition-all z-[2147483647]"
-        style={{ right: windowState.right, bottom: windowState.bottom, userSelect: 'none' }}
+        style={{ right: windowState.right, bottom: windowState.bottom, userSelect: 'none', transform: `scale(${uiScale})`, transformOrigin: 'bottom right' }}
         onMouseDown={handleMouseDown}
         onClick={() => {
           if (!windowState.isDragging) toggleMinimized();
@@ -258,7 +285,9 @@ const Widget: React.FC = () => {
           right: windowState.right, 
           bottom: windowState.bottom,
           width: windowState.width,
-          height: windowState.height
+          height: windowState.height,
+          transform: `scale(${uiScale})`,
+          transformOrigin: 'bottom right'
         }}
       >
         {/* Resize Handles */}
@@ -661,7 +690,7 @@ const Widget: React.FC = () => {
       {/* Reset Statistics Confirmation Dialog */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans pointer-events-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transform scale-100 transition-all">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transition-all" style={{ transform: `scale(${uiScale})`, transformOrigin: 'center' }}>
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">重置今日数据?</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               确定要重置今日的所有统计数据吗？包括任务专注时间和总时长。此操作无法撤销。
@@ -690,7 +719,7 @@ const Widget: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       {taskToDelete && (
         <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans pointer-events-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transform scale-100 transition-all">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transition-all" style={{ transform: `scale(${uiScale})`, transformOrigin: 'center' }}>
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">确认删除?</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               确定要删除这个任务吗？此操作无法撤销。
