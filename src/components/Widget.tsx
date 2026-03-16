@@ -145,10 +145,15 @@ const Widget: React.FC = () => {
       if (windowState.isDragging) {
         const deltaX = windowState.startX - e.clientX; // Moving left increases right value
         const deltaY = windowState.startY - e.clientY; // Moving up increases bottom value
+        const minTopGap = 12;
+        const minBottomGap = 8;
+        const visualHeight = (state.isMinimized ? 40 : windowState.height) * uiScale;
+        const maxBottom = Math.max(minBottomGap, window.innerHeight - visualHeight - minTopGap);
+        const nextBottom = windowState.initialBottom + deltaY;
         setWindowState(prev => ({
           ...prev,
           right: prev.initialRight + deltaX,
-          bottom: prev.initialBottom + deltaY,
+          bottom: Math.max(minBottomGap, Math.min(maxBottom, nextBottom)),
         }));
       } else if (windowState.isResizing) {
         const deltaX = e.clientX - windowState.startX;
@@ -224,7 +229,7 @@ const Widget: React.FC = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [windowState.isDragging, windowState.isResizing, windowState.startX, windowState.startY, windowState.initialRight, windowState.initialBottom, windowState.initialWidth, windowState.initialHeight, windowState.resizeDirection]);
+  }, [windowState.isDragging, windowState.isResizing, windowState.startX, windowState.startY, windowState.initialRight, windowState.initialBottom, windowState.initialWidth, windowState.initialHeight, windowState.resizeDirection, windowState.height, state.isMinimized, uiScale]);
 
   // Helper to format duration for tasks
   const formatDuration = (ms: number) => {
@@ -656,7 +661,7 @@ const Widget: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="h-12 bg-white dark:bg-gray-800 border-t flex items-center justify-between px-4 shrink-0">
+        <div className="h-12 bg-white dark:bg-gray-800 border-t flex items-center justify-between px-4 shrink-0 cursor-move" onMouseDown={handleMouseDown}>
            <button 
              onClick={state.status === 'resting' ? undefined : startRest}
              disabled={state.status === 'resting'}
