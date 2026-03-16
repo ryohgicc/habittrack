@@ -1,0 +1,18 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="700" fill="#F3F4F6"/>
+  <rect x="130" y="80" width="940" height="560" rx="28" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/>
+  <rect x="130" y="80" width="940" height="84" rx="28" fill="#F9FAFB"/>
+  <rect x="130" y="132" width="940" height="32" fill="#F9FAFB"/>
+  <text x="174" y="130" fill="#0F172A" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="700">处理小红书回复</text>
+  <text x="790" y="130" fill="#2563EB" font-family="JetBrains Mono, monospace" font-size="40" font-weight="700">26:16</text>
+  <circle cx="164" cy="122" r="14" fill="#22C55E"/>
+  <rect x="170" y="204" width="400" height="180" rx="24" fill="#DCFCE7" stroke="#A7F3D0"/>
+  <rect x="630" y="204" width="400" height="180" rx="24" fill="#FEE2E2" stroke="#FECACA"/>
+  <text x="212" y="312" fill="#047857" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="72" font-weight="700">休息</text>
+  <text x="672" y="312" fill="#B91C1C" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="72" font-weight="700">结束</text>
+  <rect x="170" y="426" width="860" height="150" rx="16" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="210" y="480" fill="#334155" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="700">紧急且重要</text>
+  <text x="210" y="528" fill="#64748B" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="22">调研运动功能 · 01:56:59</text>
+  <text x="694" y="480" fill="#334155" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="700">重要不紧急</text>
+  <text x="694" y="528" fill="#64748B" font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif" font-size="22">设计用户回访 · 00:42:13</text>
+</svg>
