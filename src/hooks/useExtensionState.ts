@@ -69,6 +69,10 @@ export function useExtensionState() {
     chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_STOP_SETTINGS', payload: settings });
   };
 
+  const updateAutoRestSettings = (settings: { enabled: boolean; lunchTime: string; nightTime: string }) => {
+    chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_REST_SETTINGS', payload: settings });
+  };
+
   return {
     state,
     loading,
@@ -83,5 +87,6 @@ export function useExtensionState() {
     setSelectedDate,
     resetDailyStats,
     updateAutoStopSettings,
+    updateAutoRestSettings,
   };
 }

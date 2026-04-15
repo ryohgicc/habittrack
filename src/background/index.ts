@@ -16,6 +16,8 @@ stateLoadPromise = new Promise((resolve) => {
       if (!appState.statistics.taskStats) appState.statistics.taskStats = {};
       if (!appState.autoStopSettings) appState.autoStopSettings = { enabled: false, time: '23:00' };
       if (appState.lastAutoStopDate === undefined) appState.lastAutoStopDate = null;
+      if (!appState.autoRestSettings) appState.autoRestSettings = { enabled: false, lunchTime: '12:30', nightTime: '22:30' };
+      if (!appState.lastAutoRestDate) appState.lastAutoRestDate = { lunch: null, night: null };
       
       checkDailyReset();
       // Setup auto-stop alarm
@@ -78,6 +80,7 @@ function checkDailyReset() {
     appState.lastResetDate = today;
     appState.selectedDate = today; // Reset selection to today
     appState.lastAutoStopDate = null; // Reset auto stop trigger for the new day
+    appState.lastAutoRestDate = { lunch: null, night: null };
     saveState();
   }
 }
@@ -86,6 +89,7 @@ function checkDailyReset() {
 chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   // Check for daily reset on every interaction to handle day changes while running
   checkDailyReset();
+  checkAutoRest();
 
   const handleMessage = async () => {
     if (!isStateLoaded) {
@@ -152,6 +156,21 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         
         saveState();
         setupAutoStopAlarm(); // Ensure alarm is running
+        break;
+
+      case 'UPDATE_AUTO_REST_SETTINGS':
+        appState.autoRestSettings = message.payload;
+        const now = new Date();
+        const [lunchHour, lunchMinute] = message.payload.lunchTime.split(':').map(Number);
+        const [nightHour, nightMinute] = message.payload.nightTime.split(':').map(Number);
+        const lunchTarget = new Date();
+        lunchTarget.setHours(lunchHour, lunchMinute, 0, 0);
+        const nightTarget = new Date();
+        nightTarget.setHours(nightHour, nightMinute, 0, 0);
+        if (lunchTarget > now) appState.lastAutoRestDate.lunch = null;
+        if (nightTarget > now) appState.lastAutoRestDate.night = null;
+        saveState();
+        setupAutoStopAlarm(); // Reuse same periodic alarm
         break;
 
       case 'ADD_TASK':
@@ -290,9 +309,40 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'checkAutoStop') {
     // Check for daily reset as well in the alarm to ensure timely updates
     checkDailyReset();
+    checkAutoRest();
     checkAutoStop();
   }
 });
+
+function checkAutoRest() {
+  if (!appState.autoRestSettings?.enabled) return;
+
+  const now = new Date();
+  const today = now.toDateString();
+
+  const maybeTrigger = (time: string, slot: 'lunch' | 'night') => {
+    const [targetHour, targetMinute] = time.split(':').map(Number);
+    const targetTime = new Date();
+    targetTime.setHours(targetHour, targetMinute, 0, 0);
+
+    if (now < targetTime || appState.lastAutoRestDate[slot] === today) {
+      return;
+    }
+
+    if (appState.status === 'in_progress') {
+      stopCurrentTimer();
+      appState.status = 'resting';
+      appState.currentTaskId = null;
+      appState.startTime = Date.now();
+      appState.savedDuration = 0;
+      appState.lastAutoRestDate[slot] = today;
+      saveState();
+    }
+  };
+
+  maybeTrigger(appState.autoRestSettings.lunchTime, 'lunch');
+  maybeTrigger(appState.autoRestSettings.nightTime, 'night');
+}
 
 function checkAutoStop() {
   if (!appState.autoStopSettings?.enabled) return;
