@@ -35,6 +35,12 @@ export interface AutoStopSettings {
   time: string; // HH:mm format
 }
 
+export interface AutoRestSettings {
+  enabled: boolean;
+  lunchTime: string; // HH:mm format
+  nightTime: string; // HH:mm format
+}
+
 export interface AppState {
   status: AppStatus;
   isMinimized: boolean;
@@ -48,6 +54,11 @@ export interface AppState {
   lastResetDate: string; // to track daily reset
   autoStopSettings: AutoStopSettings;
   lastAutoStopDate: string | null; // date string when auto-stop was last triggered
+  autoRestSettings: AutoRestSettings;
+  lastAutoRestDate: {
+    lunch: string | null;
+    night: string | null;
+  };
 }
 
 export const INITIAL_STATE: AppState = {
@@ -76,4 +87,13 @@ export const INITIAL_STATE: AppState = {
     time: '23:00',
   },
   lastAutoStopDate: null,
+  autoRestSettings: {
+    enabled: false,
+    lunchTime: '12:30',
+    nightTime: '22:30',
+  },
+  lastAutoRestDate: {
+    lunch: null,
+    night: null,
+  },
 };

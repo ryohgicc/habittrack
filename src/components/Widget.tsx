@@ -6,7 +6,7 @@ import clsx from 'clsx';
 import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings } = useExtensionState();
+  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings, updateAutoRestSettings } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedQuadrants, setExpandedQuadrants] = useState<Record<string, boolean>>({});
@@ -15,6 +15,7 @@ const Widget: React.FC = () => {
   const [uiScale, setUiScale] = useState(1);
   
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [taskToComplete, setTaskToComplete] = useState<string | null>(null);
 
   const toggleQuadrantExpand = (quadrant: string) => {
     setExpandedQuadrants(prev => ({
@@ -35,6 +36,21 @@ const Widget: React.FC = () => {
     if (taskToDelete) {
       deleteTask(taskToDelete);
       setTaskToDelete(null);
+    }
+  };
+
+  const confirmComplete = (taskId: string) => {
+    setTaskToComplete(taskId);
+  };
+
+  const cancelComplete = () => {
+    setTaskToComplete(null);
+  };
+
+  const executeComplete = () => {
+    if (taskToComplete) {
+      completeTask(taskToComplete);
+      setTaskToComplete(null);
     }
   };
   
@@ -137,6 +153,27 @@ const Widget: React.FC = () => {
     updateAutoStopSettings({
        ...state.autoStopSettings,
        time: e.target.value
+    });
+  };
+
+  const handleAutoRestToggle = () => {
+    updateAutoRestSettings({
+      ...state.autoRestSettings,
+      enabled: !state.autoRestSettings.enabled
+    });
+  };
+
+  const handleAutoRestLunchTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateAutoRestSettings({
+      ...state.autoRestSettings,
+      lunchTime: e.target.value
+    });
+  };
+
+  const handleAutoRestNightTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateAutoRestSettings({
+      ...state.autoRestSettings,
+      nightTime: e.target.value
     });
   };
 
@@ -601,6 +638,51 @@ const Widget: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700 mb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200">自动休息</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      默认关闭。到午休或晚休时间时，自动终止进行中任务并开始休息计时。
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={state.autoRestSettings?.enabled || false}
+                        onChange={handleAutoRestToggle}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {state.autoRestSettings?.enabled && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">午休开始时间</span>
+                      <input
+                        type="time"
+                        value={state.autoRestSettings?.lunchTime || '12:30'}
+                        onChange={handleAutoRestLunchTimeChange}
+                        className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">晚休开始时间</span>
+                      <input
+                        type="time"
+                        value={state.autoRestSettings?.nightTime || '22:30'}
+                        onChange={handleAutoRestNightTimeChange}
+                        className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="h-full grid grid-cols-2 grid-rows-2 gap-px bg-gray-200 dark:bg-gray-700">
@@ -613,7 +695,7 @@ const Widget: React.FC = () => {
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
                 onEditTask={editTask}
-                onCompleteTask={completeTask}
+                onCompleteTask={confirmComplete}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -626,7 +708,7 @@ const Widget: React.FC = () => {
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
                 onEditTask={editTask}
-                onCompleteTask={completeTask}
+                onCompleteTask={confirmComplete}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -639,7 +721,7 @@ const Widget: React.FC = () => {
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
                 onEditTask={editTask}
-                onCompleteTask={completeTask}
+                onCompleteTask={confirmComplete}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -652,7 +734,7 @@ const Widget: React.FC = () => {
                 onStartTask={startTask}
                 onDeleteTask={confirmDelete}
                 onEditTask={editTask}
-                onCompleteTask={completeTask}
+                onCompleteTask={confirmComplete}
                 onAddTask={addTask}
                 formatDuration={getActiveTaskDuration}
               />
@@ -741,6 +823,32 @@ const Widget: React.FC = () => {
                 className="flex-1 px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
               >
                 删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Confirmation Dialog */}
+      {taskToComplete && (
+        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/20 backdrop-blur-sm font-sans pointer-events-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[280px] border border-gray-200 dark:border-gray-700 transition-all" style={{ transform: `scale(${uiScale})`, transformOrigin: 'center' }}>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">确认完成?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              确定要将这个任务标记为已完成吗？
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelComplete}
+                className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={executeComplete}
+                className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                确认
               </button>
             </div>
           </div>
