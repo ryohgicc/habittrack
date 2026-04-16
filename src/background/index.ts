@@ -18,6 +18,9 @@ stateLoadPromise = new Promise((resolve) => {
       if (appState.lastAutoStopDate === undefined) appState.lastAutoStopDate = null;
       if (!appState.autoRestSettings) appState.autoRestSettings = { enabled: false, lunchTime: '12:30', nightTime: '22:30' };
       if (!appState.lastAutoRestDate) appState.lastAutoRestDate = { lunch: null, night: null };
+      if (!appState.taskStartReminderSettings) appState.taskStartReminderSettings = { enabled: false, time: '09:00' };
+      if (appState.lastTaskStartReminderDate === undefined) appState.lastTaskStartReminderDate = null;
+      if (appState.taskStartReminderActive === undefined) appState.taskStartReminderActive = false;
       
       checkDailyReset();
       // Setup auto-stop alarm
@@ -81,6 +84,8 @@ function checkDailyReset() {
     appState.selectedDate = today; // Reset selection to today
     appState.lastAutoStopDate = null; // Reset auto stop trigger for the new day
     appState.lastAutoRestDate = { lunch: null, night: null };
+    appState.lastTaskStartReminderDate = null;
+    appState.taskStartReminderActive = false;
     saveState();
   }
 }
@@ -90,6 +95,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   // Check for daily reset on every interaction to handle day changes while running
   checkDailyReset();
   checkAutoRest();
+  checkTaskStartReminder();
 
   const handleMessage = async () => {
     if (!isStateLoaded) {
@@ -171,6 +177,24 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         if (nightTarget > now) appState.lastAutoRestDate.night = null;
         saveState();
         setupAutoStopAlarm(); // Reuse same periodic alarm
+        break;
+
+      case 'UPDATE_TASK_START_REMINDER_SETTINGS':
+        appState.taskStartReminderSettings = message.payload;
+        const [remindHour, remindMinute] = message.payload.time.split(':').map(Number);
+        const remindTarget = new Date();
+        remindTarget.setHours(remindHour, remindMinute, 0, 0);
+        if (remindTarget > new Date()) {
+          appState.lastTaskStartReminderDate = null;
+        }
+        appState.taskStartReminderActive = false;
+        saveState();
+        setupAutoStopAlarm(); // Reuse same periodic alarm
+        break;
+
+      case 'DISMISS_TASK_START_REMINDER':
+        appState.taskStartReminderActive = false;
+        saveState();
         break;
 
       case 'ADD_TASK':
@@ -262,6 +286,8 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         } else {
           appState.savedDuration = 0;
         }
+        appState.taskStartReminderActive = false;
+        appState.lastTaskStartReminderDate = new Date().toDateString();
         saveState();
         break;
   
@@ -309,10 +335,35 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'checkAutoStop') {
     // Check for daily reset as well in the alarm to ensure timely updates
     checkDailyReset();
+    checkTaskStartReminder();
     checkAutoRest();
     checkAutoStop();
   }
 });
+
+function checkTaskStartReminder() {
+  if (!appState.taskStartReminderSettings?.enabled) return;
+
+  const now = new Date();
+  const today = now.toDateString();
+  if (appState.lastTaskStartReminderDate === today) return;
+
+  const [targetHour, targetMinute] = appState.taskStartReminderSettings.time.split(':').map(Number);
+  const targetTime = new Date();
+  targetTime.setHours(targetHour, targetMinute, 0, 0);
+
+  if (now < targetTime) return;
+
+  const hasStartedTaskToday = (
+    appState.status === 'in_progress' ||
+    appState.statistics.focusTime > 0 ||
+    appState.tasks.some((task) => task.duration > 0)
+  );
+
+  appState.lastTaskStartReminderDate = today;
+  appState.taskStartReminderActive = !hasStartedTaskToday;
+  saveState();
+}
 
 function checkAutoRest() {
   if (!appState.autoRestSettings?.enabled) return;

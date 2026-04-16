@@ -6,7 +6,7 @@ import clsx from 'clsx';
 import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings, updateAutoRestSettings } = useExtensionState();
+  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings, updateAutoRestSettings, updateTaskStartReminderSettings, dismissTaskStartReminder } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedQuadrants, setExpandedQuadrants] = useState<Record<string, boolean>>({});
@@ -174,6 +174,20 @@ const Widget: React.FC = () => {
     updateAutoRestSettings({
       ...state.autoRestSettings,
       nightTime: e.target.value
+    });
+  };
+
+  const handleTaskStartReminderToggle = () => {
+    updateTaskStartReminderSettings({
+      ...state.taskStartReminderSettings,
+      enabled: !state.taskStartReminderSettings.enabled
+    });
+  };
+
+  const handleTaskStartReminderTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateTaskStartReminderSettings({
+      ...state.taskStartReminderSettings,
+      time: e.target.value
     });
   };
 
@@ -683,6 +697,40 @@ const Widget: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700 mb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200">定时提醒开始任务</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      默认关闭。到设定时间仍未开始任何任务时，弹出强提醒弹窗。
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={state.taskStartReminderSettings?.enabled || false}
+                        onChange={handleTaskStartReminderToggle}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {state.taskStartReminderSettings?.enabled && (
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">提醒时间</span>
+                    <input
+                      type="time"
+                      value={state.taskStartReminderSettings?.time || '09:00'}
+                      onChange={handleTaskStartReminderTimeChange}
+                      className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="h-full grid grid-cols-2 grid-rows-2 gap-px bg-gray-200 dark:bg-gray-700">
@@ -851,6 +899,24 @@ const Widget: React.FC = () => {
                 确认
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Start Reminder Dialog */}
+      {state.taskStartReminderActive && (
+        <div className="fixed inset-0 z-[2147483649] flex items-center justify-center bg-black/40 backdrop-blur-sm font-sans pointer-events-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[320px] border border-gray-200 dark:border-gray-700 transition-all" style={{ transform: `scale(${uiScale})`, transformOrigin: 'center' }}>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">该开始任务啦</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-5">
+              你设置的提醒时间已到，但今天还没有开始任何任务。现在就开始第一项任务吧。
+            </p>
+            <button
+              onClick={dismissTaskStartReminder}
+              className="w-full px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              我知道了
+            </button>
           </div>
         </div>
       )}

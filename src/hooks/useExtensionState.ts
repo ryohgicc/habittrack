@@ -7,13 +7,17 @@ export function useExtensionState() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchLatestState = () => {
+      chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
+        if (response) {
+          setState(response);
+        }
+        setLoading(false);
+      });
+    };
+
     // Initial fetch
-    chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
-      if (response) {
-        setState(response);
-      }
-      setLoading(false);
-    });
+    fetchLatestState();
 
     // Listen for updates
     const listener = (message: any) => {
@@ -21,8 +25,34 @@ export function useExtensionState() {
         setState(message.payload);
       }
     };
+
+    // Tabs may miss broadcast updates while suspended/discarded.
+    // Refetch state when page becomes active again.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLatestState();
+      }
+    };
+
+    const handleFocus = () => {
+      fetchLatestState();
+    };
+
+    const handlePageShow = () => {
+      fetchLatestState();
+    };
+
     chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
   const addTask = (title: string, quadrant: QuadrantType) => {
@@ -73,6 +103,14 @@ export function useExtensionState() {
     chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_REST_SETTINGS', payload: settings });
   };
 
+  const updateTaskStartReminderSettings = (settings: { enabled: boolean; time: string }) => {
+    chrome.runtime.sendMessage({ type: 'UPDATE_TASK_START_REMINDER_SETTINGS', payload: settings });
+  };
+
+  const dismissTaskStartReminder = () => {
+    chrome.runtime.sendMessage({ type: 'DISMISS_TASK_START_REMINDER' });
+  };
+
   return {
     state,
     loading,
@@ -88,5 +126,7 @@ export function useExtensionState() {
     resetDailyStats,
     updateAutoStopSettings,
     updateAutoRestSettings,
+    updateTaskStartReminderSettings,
+    dismissTaskStartReminder,
   };
 }

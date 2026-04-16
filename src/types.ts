@@ -41,6 +41,11 @@ export interface AutoRestSettings {
   nightTime: string; // HH:mm format
 }
 
+export interface TaskStartReminderSettings {
+  enabled: boolean;
+  time: string; // HH:mm format
+}
+
 export interface AppState {
   status: AppStatus;
   isMinimized: boolean;
@@ -59,6 +64,9 @@ export interface AppState {
     lunch: string | null;
     night: string | null;
   };
+  taskStartReminderSettings: TaskStartReminderSettings;
+  lastTaskStartReminderDate: string | null;
+  taskStartReminderActive: boolean;
 }
 
 export const INITIAL_STATE: AppState = {
@@ -96,4 +104,10 @@ export const INITIAL_STATE: AppState = {
     lunch: null,
     night: null,
   },
+  taskStartReminderSettings: {
+    enabled: false,
+    time: '09:00',
+  },
+  lastTaskStartReminderDate: null,
+  taskStartReminderActive: false,
 };
