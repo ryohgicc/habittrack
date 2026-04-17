@@ -18,6 +18,8 @@ stateLoadPromise = new Promise((resolve) => {
       if (appState.lastAutoStopDate === undefined) appState.lastAutoStopDate = null;
       if (!appState.autoRestSettings) appState.autoRestSettings = { enabled: false, lunchTime: '12:30', nightTime: '22:30' };
       if (!appState.lastAutoRestDate) appState.lastAutoRestDate = { lunch: null, night: null };
+      if (!appState.taskStartReminderSettings) appState.taskStartReminderSettings = { enabled: false, time: '09:00' };
+      if (appState.lastTaskStartReminderDate === undefined) appState.lastTaskStartReminderDate = null;
       
       checkDailyReset();
       // Setup auto-stop alarm
@@ -42,6 +44,30 @@ function saveState() {
       }
     });
   });
+}
+
+async function sendTaskStartReminderToTab(tabId: number) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'TRIGGER_TASK_START_REMINDER' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function triggerTaskStartReminderForActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const activeTab = tabs.find((tab) => typeof tab.id === 'number');
+  if (!activeTab?.id) {
+    return { ok: false, message: '当前没有可接收提醒的活动网页标签。' };
+  }
+
+  const delivered = await sendTaskStartReminderToTab(activeTab.id);
+  if (delivered) {
+    return { ok: true, message: '测试提醒已投递到当前页面。' };
+  }
+
+  return { ok: false, message: '当前页面无法接收提醒，请先刷新网页后再试。' };
 }
 
 function checkDailyReset() {
@@ -81,6 +107,7 @@ function checkDailyReset() {
     appState.selectedDate = today; // Reset selection to today
     appState.lastAutoStopDate = null; // Reset auto stop trigger for the new day
     appState.lastAutoRestDate = { lunch: null, night: null };
+    appState.lastTaskStartReminderDate = null;
     saveState();
   }
 }
@@ -90,6 +117,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   // Check for daily reset on every interaction to handle day changes while running
   checkDailyReset();
   checkAutoRest();
+  checkTaskStartReminder();
 
   const handleMessage = async () => {
     if (!isStateLoaded) {
@@ -169,6 +197,18 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         nightTarget.setHours(nightHour, nightMinute, 0, 0);
         if (lunchTarget > now) appState.lastAutoRestDate.lunch = null;
         if (nightTarget > now) appState.lastAutoRestDate.night = null;
+        saveState();
+        setupAutoStopAlarm(); // Reuse same periodic alarm
+        break;
+
+      case 'UPDATE_TASK_START_REMINDER_SETTINGS':
+        appState.taskStartReminderSettings = message.payload;
+        const [remindHour, remindMinute] = message.payload.time.split(':').map(Number);
+        const remindTarget = new Date();
+        remindTarget.setHours(remindHour, remindMinute, 0, 0);
+        if (remindTarget > new Date()) {
+          appState.lastTaskStartReminderDate = null;
+        }
         saveState();
         setupAutoStopAlarm(); // Reuse same periodic alarm
         break;
@@ -262,6 +302,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         } else {
           appState.savedDuration = 0;
         }
+        appState.lastTaskStartReminderDate = new Date().toDateString();
         saveState();
         break;
   
@@ -309,10 +350,38 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'checkAutoStop') {
     // Check for daily reset as well in the alarm to ensure timely updates
     checkDailyReset();
+    checkTaskStartReminder();
     checkAutoRest();
     checkAutoStop();
   }
+
 });
+
+function checkTaskStartReminder() {
+  const now = new Date();
+  const today = now.toDateString();
+
+  if (!appState.taskStartReminderSettings?.enabled) return;
+  if (appState.lastTaskStartReminderDate === today) return;
+
+  const [targetHour, targetMinute] = appState.taskStartReminderSettings.time.split(':').map(Number);
+  const targetTime = new Date();
+  targetTime.setHours(targetHour, targetMinute, 0, 0);
+
+  if (now < targetTime) return;
+
+  const hasStartedTaskToday = (
+    appState.status === 'in_progress' ||
+    appState.statistics.focusTime > 0 ||
+    appState.tasks.some((task) => task.duration > 0)
+  );
+
+  appState.lastTaskStartReminderDate = today;
+  if (!hasStartedTaskToday) {
+    triggerTaskStartReminderForActiveTab();
+  }
+  saveState();
+}
 
 function checkAutoRest() {
   if (!appState.autoRestSettings?.enabled) return;

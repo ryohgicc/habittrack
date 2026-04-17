@@ -2,75 +2,151 @@ import { useState, useEffect } from 'react';
 import { INITIAL_STATE } from '../types';
 import type { AppState, QuadrantType } from '../types';
 
+function isExtensionContextAvailable() {
+  return typeof chrome !== 'undefined' && !!chrome.runtime?.id;
+}
+
+function safeSendRuntimeMessage(message: unknown, onResponse?: (response: any) => void) {
+  if (!isExtensionContextAvailable()) {
+    onResponse?.(undefined);
+    return false;
+  }
+
+  try {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime?.lastError) {
+        onResponse?.(undefined);
+        return;
+      }
+
+      onResponse?.(response);
+    });
+    return true;
+  } catch {
+    onResponse?.(undefined);
+    return false;
+  }
+}
+
 export function useExtensionState() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
+  const [taskStartReminderVisible, setTaskStartReminderVisible] = useState(false);
 
   useEffect(() => {
-    // Initial fetch
-    chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
-      if (response) {
-        setState(response);
+    const fetchLatestState = () => {
+      const sent = safeSendRuntimeMessage({ type: 'GET_STATE' }, (response) => {
+        if (response) {
+          setState(response);
+        }
+        setLoading(false);
+      });
+
+      if (!sent) {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    // Initial fetch
+    fetchLatestState();
 
     // Listen for updates
     const listener = (message: any) => {
       if (message.type === 'STATE_UPDATE') {
         setState(message.payload);
       }
+      if (message.type === 'TRIGGER_TASK_START_REMINDER') {
+        setTaskStartReminderVisible(true);
+      }
     };
+
+    // Tabs may miss broadcast updates while suspended/discarded.
+    // Refetch state when page becomes active again.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLatestState();
+      }
+    };
+
+    const handleFocus = () => {
+      fetchLatestState();
+    };
+
+    const handlePageShow = () => {
+      fetchLatestState();
+    };
+
+    if (!isExtensionContextAvailable()) {
+      return () => undefined;
+    }
+
     chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
   const addTask = (title: string, quadrant: QuadrantType) => {
-    chrome.runtime.sendMessage({ type: 'ADD_TASK', payload: { title, quadrant } });
+    safeSendRuntimeMessage({ type: 'ADD_TASK', payload: { title, quadrant } });
   };
 
   const startTask = (taskId: string) => {
-    chrome.runtime.sendMessage({ type: 'START_TASK', payload: { taskId } });
+    safeSendRuntimeMessage({ type: 'START_TASK', payload: { taskId } });
   };
 
   const startRest = () => {
-    chrome.runtime.sendMessage({ type: 'START_REST' });
+    safeSendRuntimeMessage({ type: 'START_REST' });
   };
 
   const stopAll = () => {
-    chrome.runtime.sendMessage({ type: 'STOP_ALL' });
+    safeSendRuntimeMessage({ type: 'STOP_ALL' });
   };
 
   const toggleMinimized = () => {
-    chrome.runtime.sendMessage({ type: 'TOGGLE_MINIMIZED' });
+    safeSendRuntimeMessage({ type: 'TOGGLE_MINIMIZED' });
   };
 
   const setSelectedDate = (date: string) => {
-    chrome.runtime.sendMessage({ type: 'SET_SELECTED_DATE', payload: { date } });
+    safeSendRuntimeMessage({ type: 'SET_SELECTED_DATE', payload: { date } });
   };
 
   const resetDailyStats = () => {
-    chrome.runtime.sendMessage({ type: 'RESET_DAILY_STATS' });
+    safeSendRuntimeMessage({ type: 'RESET_DAILY_STATS' });
   };
 
   const deleteTask = (taskId: string) => {
-    chrome.runtime.sendMessage({ type: 'DELETE_TASK', payload: { taskId } });
+    safeSendRuntimeMessage({ type: 'DELETE_TASK', payload: { taskId } });
   };
 
   const editTask = (taskId: string, title: string) => {
-    chrome.runtime.sendMessage({ type: 'EDIT_TASK', payload: { taskId, title } });
+    safeSendRuntimeMessage({ type: 'EDIT_TASK', payload: { taskId, title } });
   };
 
   const completeTask = (taskId: string) => {
-    chrome.runtime.sendMessage({ type: 'COMPLETE_TASK', payload: { taskId } });
+    safeSendRuntimeMessage({ type: 'COMPLETE_TASK', payload: { taskId } });
   };
 
   const updateAutoStopSettings = (settings: { enabled: boolean; time: string }) => {
-    chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_STOP_SETTINGS', payload: settings });
+    safeSendRuntimeMessage({ type: 'UPDATE_AUTO_STOP_SETTINGS', payload: settings });
   };
 
   const updateAutoRestSettings = (settings: { enabled: boolean; lunchTime: string; nightTime: string }) => {
-    chrome.runtime.sendMessage({ type: 'UPDATE_AUTO_REST_SETTINGS', payload: settings });
+    safeSendRuntimeMessage({ type: 'UPDATE_AUTO_REST_SETTINGS', payload: settings });
+  };
+
+  const updateTaskStartReminderSettings = (settings: { enabled: boolean; time: string }) => {
+    safeSendRuntimeMessage({ type: 'UPDATE_TASK_START_REMINDER_SETTINGS', payload: settings });
+  };
+
+  const dismissTaskStartReminder = () => {
+    setTaskStartReminderVisible(false);
   };
 
   return {
@@ -88,5 +164,8 @@ export function useExtensionState() {
     resetDailyStats,
     updateAutoStopSettings,
     updateAutoRestSettings,
+    updateTaskStartReminderSettings,
+    dismissTaskStartReminder,
+    taskStartReminderVisible,
   };
 }
