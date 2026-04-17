@@ -20,7 +20,6 @@ stateLoadPromise = new Promise((resolve) => {
       if (!appState.lastAutoRestDate) appState.lastAutoRestDate = { lunch: null, night: null };
       if (!appState.taskStartReminderSettings) appState.taskStartReminderSettings = { enabled: false, time: '09:00' };
       if (appState.lastTaskStartReminderDate === undefined) appState.lastTaskStartReminderDate = null;
-      if (appState.taskStartReminderTestTriggerAt === undefined) appState.taskStartReminderTestTriggerAt = null;
       
       checkDailyReset();
       // Setup auto-stop alarm
@@ -47,15 +46,28 @@ function saveState() {
   });
 }
 
-function triggerTaskStartReminderForActiveTab() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-    const activeTab = tabs.find((tab) => typeof tab.id === 'number');
-    if (!activeTab?.id) return;
+async function sendTaskStartReminderToTab(tabId: number) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'TRIGGER_TASK_START_REMINDER' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-    chrome.tabs.sendMessage(activeTab.id, { type: 'TRIGGER_TASK_START_REMINDER' }).catch(() => {
-      // Ignore tabs where the content script is unavailable, such as internal browser pages.
-    });
-  });
+async function triggerTaskStartReminderForActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const activeTab = tabs.find((tab) => typeof tab.id === 'number');
+  if (!activeTab?.id) {
+    return { ok: false, message: '当前没有可接收提醒的活动网页标签。' };
+  }
+
+  const delivered = await sendTaskStartReminderToTab(activeTab.id);
+  if (delivered) {
+    return { ok: true, message: '测试提醒已投递到当前页面。' };
+  }
+
+  return { ok: false, message: '当前页面无法接收提醒，请先刷新网页后再试。' };
 }
 
 function checkDailyReset() {
@@ -96,7 +108,6 @@ function checkDailyReset() {
     appState.lastAutoStopDate = null; // Reset auto stop trigger for the new day
     appState.lastAutoRestDate = { lunch: null, night: null };
     appState.lastTaskStartReminderDate = null;
-    appState.taskStartReminderTestTriggerAt = null;
     saveState();
   }
 }
@@ -198,15 +209,6 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         if (remindTarget > new Date()) {
           appState.lastTaskStartReminderDate = null;
         }
-        appState.taskStartReminderTestTriggerAt = null;
-        saveState();
-        setupAutoStopAlarm(); // Reuse same periodic alarm
-        break;
-
-      case 'SCHEDULE_TASK_START_REMINDER_TEST':
-        appState.taskStartReminderSettings.enabled = true;
-        appState.lastTaskStartReminderDate = null;
-        appState.taskStartReminderTestTriggerAt = Date.now() + (message.payload.delayMinutes * 60 * 1000);
         saveState();
         setupAutoStopAlarm(); // Reuse same periodic alarm
         break;
@@ -301,7 +303,6 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           appState.savedDuration = 0;
         }
         appState.lastTaskStartReminderDate = new Date().toDateString();
-        appState.taskStartReminderTestTriggerAt = null;
         saveState();
         break;
   
@@ -353,21 +354,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     checkAutoRest();
     checkAutoStop();
   }
+
 });
 
 function checkTaskStartReminder() {
   const now = new Date();
   const today = now.toDateString();
-
-  if (appState.taskStartReminderTestTriggerAt && now.getTime() >= appState.taskStartReminderTestTriggerAt) {
-    const canShowTestReminder = appState.status !== 'in_progress';
-    appState.taskStartReminderTestTriggerAt = null;
-    if (canShowTestReminder) {
-      triggerTaskStartReminderForActiveTab();
-    }
-    saveState();
-    return;
-  }
 
   if (!appState.taskStartReminderSettings?.enabled) return;
   if (appState.lastTaskStartReminderDate === today) return;
