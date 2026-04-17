@@ -66,7 +66,7 @@ export interface AppState {
   };
   taskStartReminderSettings: TaskStartReminderSettings;
   lastTaskStartReminderDate: string | null;
-  taskStartReminderActive: boolean;
+  taskStartReminderTestTriggerAt: number | null;
 }
 
 export const INITIAL_STATE: AppState = {
@@ -109,5 +109,5 @@ export const INITIAL_STATE: AppState = {
     time: '09:00',
   },
   lastTaskStartReminderDate: null,
-  taskStartReminderActive: false,
+  taskStartReminderTestTriggerAt: null,
 };

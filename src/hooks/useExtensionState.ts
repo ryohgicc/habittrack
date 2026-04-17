@@ -5,6 +5,7 @@ import type { AppState, QuadrantType } from '../types';
 export function useExtensionState() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
+  const [taskStartReminderVisible, setTaskStartReminderVisible] = useState(false);
 
   useEffect(() => {
     const fetchLatestState = () => {
@@ -23,6 +24,9 @@ export function useExtensionState() {
     const listener = (message: any) => {
       if (message.type === 'STATE_UPDATE') {
         setState(message.payload);
+      }
+      if (message.type === 'TRIGGER_TASK_START_REMINDER') {
+        setTaskStartReminderVisible(true);
       }
     };
 
@@ -108,7 +112,11 @@ export function useExtensionState() {
   };
 
   const dismissTaskStartReminder = () => {
-    chrome.runtime.sendMessage({ type: 'DISMISS_TASK_START_REMINDER' });
+    setTaskStartReminderVisible(false);
+  };
+
+  const scheduleTaskStartReminderTest = (delayMinutes: number) => {
+    chrome.runtime.sendMessage({ type: 'SCHEDULE_TASK_START_REMINDER_TEST', payload: { delayMinutes } });
   };
 
   return {
@@ -128,5 +136,7 @@ export function useExtensionState() {
     updateAutoRestSettings,
     updateTaskStartReminderSettings,
     dismissTaskStartReminder,
+    scheduleTaskStartReminderTest,
+    taskStartReminderVisible,
   };
 }

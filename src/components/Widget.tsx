@@ -6,7 +6,7 @@ import clsx from 'clsx';
 import { Minus, PieChart, Pause, Square, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 
 const Widget: React.FC = () => {
-  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings, updateAutoRestSettings, updateTaskStartReminderSettings, dismissTaskStartReminder } = useExtensionState();
+  const { state, loading, addTask, deleteTask, editTask, completeTask, startTask, startRest, stopAll, toggleMinimized, setSelectedDate, resetDailyStats, updateAutoStopSettings, updateAutoRestSettings, updateTaskStartReminderSettings, dismissTaskStartReminder, scheduleTaskStartReminderTest, taskStartReminderVisible } = useExtensionState();
   const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedQuadrants, setExpandedQuadrants] = useState<Record<string, boolean>>({});
@@ -189,6 +189,10 @@ const Widget: React.FC = () => {
       ...state.taskStartReminderSettings,
       time: e.target.value
     });
+  };
+
+  const handleTaskStartReminderTest = () => {
+    scheduleTaskStartReminderTest(2);
   };
 
   React.useEffect(() => {
@@ -720,14 +724,27 @@ const Widget: React.FC = () => {
                 </div>
 
                 {state.taskStartReminderSettings?.enabled && (
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">提醒时间</span>
-                    <input
-                      type="time"
-                      value={state.taskStartReminderSettings?.time || '09:00'}
-                      onChange={handleTaskStartReminderTimeChange}
-                      className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
-                    />
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">提醒时间</span>
+                      <input
+                        type="time"
+                        value={state.taskStartReminderSettings?.time || '09:00'}
+                        onChange={handleTaskStartReminderTimeChange}
+                        className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        测试按钮会在 2 分钟后按真实定时路径触发一次提醒。
+                      </span>
+                      <button
+                        onClick={handleTaskStartReminderTest}
+                        className="shrink-0 px-3 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md text-sm font-medium transition-colors"
+                      >
+                        测试提醒
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -904,7 +921,7 @@ const Widget: React.FC = () => {
       )}
 
       {/* Task Start Reminder Dialog */}
-      {state.taskStartReminderActive && (
+      {taskStartReminderVisible && (
         <div className="fixed inset-0 z-[2147483649] flex items-center justify-center bg-black/40 backdrop-blur-sm font-sans pointer-events-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-[320px] border border-gray-200 dark:border-gray-700 transition-all" style={{ transform: `scale(${uiScale})`, transformOrigin: 'center' }}>
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">该开始任务啦</h3>
