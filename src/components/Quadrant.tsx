@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import type { Task, QuadrantType } from '../types';
-import { TaskItem } from './TaskItem';
-import clsx from 'clsx';
-import { Plus } from 'lucide-react';
+import React, { useState } from 'react'
+import { Plus } from 'lucide-react'
+import type { QuadrantType, Task } from '../types'
+import { TaskItem } from './TaskItem'
+import { getQuadrantPalette, type WidgetTheme } from './widgetStyleTokens'
 
 interface QuadrantProps {
-  tasks: Task[];
-  quadrant: QuadrantType;
-  currentTaskId: string | null;
-  onStartTask: (taskId: string) => void;
-  onDeleteTask: (taskId: string) => void;
-  onEditTask: (taskId: string, newTitle: string) => void;
-  onCompleteTask: (taskId: string) => void;
-  onAddTask: (title: string, quadrant: QuadrantType) => void;
-  formatDuration: (task: Task) => string;
-  className?: string;
-  title: string;
+  tasks: Task[]
+  quadrant: QuadrantType
+  currentTaskId: string | null
+  onStartTask: (taskId: string) => void
+  onDeleteTask: (taskId: string) => void
+  onEditTask: (taskId: string, newTitle: string) => void
+  onCompleteTask: (taskId: string) => void
+  onAddTask: (title: string, quadrant: QuadrantType) => void
+  formatDuration: (task: Task) => string
+  title: string
+  theme: WidgetTheme
 }
 
 export const Quadrant: React.FC<QuadrantProps> = ({
@@ -28,44 +28,93 @@ export const Quadrant: React.FC<QuadrantProps> = ({
   onCompleteTask,
   onAddTask,
   formatDuration,
-  className,
   title,
+  theme,
 }) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const s = theme.scale
+  const [isAdding, setIsAdding] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [isAddRowHovered, setIsAddRowHovered] = useState(false)
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const palette = getQuadrantPalette(theme, quadrant)
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && newTaskTitle.trim()) {
-      onAddTask(newTaskTitle.trim(), quadrant);
-      setNewTaskTitle('');
-      // Keep focus
+      onAddTask(newTaskTitle.trim(), quadrant)
+      setNewTaskTitle('')
     } else if (e.key === 'Escape') {
-      setIsAdding(false);
-      setNewTaskTitle('');
+      setIsAdding(false)
+      setNewTaskTitle('')
     }
-  };
+  }
 
   const handleBlur = () => {
     if (newTaskTitle.trim()) {
-      onAddTask(newTaskTitle.trim(), quadrant);
-      setNewTaskTitle('');
+      onAddTask(newTaskTitle.trim(), quadrant)
+      setNewTaskTitle('')
     }
-    setIsAdding(false);
-  };
+    setIsAdding(false)
+  }
 
-  // Filter out completed tasks from the active view
-  const activeTasks = tasks.filter(t => t.status !== 'completed');
+  const activeTasks = tasks.filter((task) => task.status !== 'completed')
 
   return (
-    <div className={clsx('flex flex-col h-full border rounded-lg overflow-hidden', className)}>
-      <div className="px-3 py-2 bg-white/50 dark:bg-gray-800/50 border-b font-semibold text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wider flex justify-between items-center">
-        {title}
-        <span className="bg-white/80 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-[10px]">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        border: `1px solid ${palette.border}`,
+        background: palette.background,
+        borderRadius: theme.radius.lg,
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: `${s(8)}px ${s(10)}px`,
+        background: palette.headerBackground,
+        borderBottom: `1px solid ${palette.border}`,
+        fontWeight: 700,
+        fontSize: s(10),
+        lineHeight: theme.px(14),
+        color: theme.colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+          boxSizing: 'border-box',
+        }}
+      >
+        <span>{title}</span>
+        <span
+          style={{
+            padding: `${s(2)}px ${s(7)}px`,
+            borderRadius: theme.radius.pill,
+            background: palette.chipBackground,
+            color: palette.chipText,
+            fontSize: s(10),
+            lineHeight: theme.px(13),
+            fontWeight: 700,
+          }}
+        >
           {activeTasks.length}
         </span>
       </div>
-      
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: s(6),
+          display: 'flex',
+          flexDirection: 'column',
+          gap: s(4),
+          boxSizing: 'border-box',
+        }}
+      >
         {activeTasks.map((task) => (
           <TaskItem
             key={task.id}
@@ -76,19 +125,38 @@ export const Quadrant: React.FC<QuadrantProps> = ({
             onEdit={onEditTask}
             onComplete={onCompleteTask}
             formatDuration={formatDuration}
+            theme={theme}
           />
         ))}
         {activeTasks.length === 0 && !isAdding && (
-          <div className="text-center py-4 text-gray-500/50 text-xs italic">
+          <div
+            style={{
+              textAlign: 'center',
+              padding: `${s(14)}px 0`,
+              color: theme.colors.textMuted,
+              opacity: 0.7,
+              fontSize: s(11),
+              lineHeight: theme.px(16),
+              fontStyle: 'italic',
+            }}
+          >
             暂无任务
           </div>
         )}
       </div>
 
-      {/* Frozen Add Row */}
-      <div 
-        className="border-t p-2 bg-white/50 dark:bg-gray-800/50 cursor-text hover:bg-white/80 dark:hover:bg-gray-800 transition-colors"
+      <div
         onClick={() => setIsAdding(true)}
+        onMouseEnter={() => setIsAddRowHovered(true)}
+        onMouseLeave={() => setIsAddRowHovered(false)}
+        style={{
+          borderTop: `1px solid ${palette.border}`,
+          padding: s(7),
+          background: isAdding || isAddRowHovered ? palette.addRowHover : palette.headerBackground,
+          cursor: 'text',
+          transition: theme.transition,
+          boxSizing: 'border-box',
+        }}
       >
         {isAdding ? (
           <input
@@ -99,15 +167,36 @@ export const Quadrant: React.FC<QuadrantProps> = ({
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             placeholder="输入任务并回车..."
-            className="w-full text-sm bg-transparent border-none outline-none placeholder-gray-400 text-gray-800 dark:text-gray-200"
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: theme.colors.textPrimary,
+              fontSize: s(13),
+              lineHeight: theme.px(18),
+              padding: 0,
+              margin: 0,
+              boxSizing: 'border-box',
+            }}
           />
         ) : (
-          <div className="flex items-center text-sm text-gray-500 hover:text-blue-600">
-            <Plus size={14} className="mr-1" />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: s(5),
+              color: isAddRowHovered ? palette.accent : theme.colors.textMuted,
+              fontSize: s(13),
+              lineHeight: theme.px(18),
+              transition: theme.transition,
+            }}
+          >
+            <Plus size={s(13)} />
             添加任务
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}

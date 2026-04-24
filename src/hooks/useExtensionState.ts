@@ -6,7 +6,12 @@ function isExtensionContextAvailable() {
   return typeof chrome !== 'undefined' && !!chrome.runtime?.id;
 }
 
-function safeSendRuntimeMessage(message: unknown, onResponse?: (response: any) => void) {
+type RuntimeMessage = {
+  type?: string;
+  payload?: AppState;
+};
+
+function safeSendRuntimeMessage(message: unknown, onResponse?: (response: unknown) => void) {
   if (!isExtensionContextAvailable()) {
     onResponse?.(undefined);
     return false;
@@ -37,7 +42,7 @@ export function useExtensionState() {
     const fetchLatestState = () => {
       const sent = safeSendRuntimeMessage({ type: 'GET_STATE' }, (response) => {
         if (response) {
-          setState(response);
+          setState(response as AppState);
         }
         setLoading(false);
       });
@@ -51,12 +56,32 @@ export function useExtensionState() {
     fetchLatestState();
 
     // Listen for updates
-    const listener = (message: any) => {
-      if (message.type === 'STATE_UPDATE') {
-        setState(message.payload);
+    const listener = (message: unknown) => {
+      if (!message || typeof message !== 'object') {
+        return;
       }
-      if (message.type === 'TRIGGER_TASK_START_REMINDER') {
+
+      const runtimeMessage = message as RuntimeMessage;
+
+      if (runtimeMessage.type === 'STATE_UPDATE' && runtimeMessage.payload) {
+        setState(runtimeMessage.payload);
+      }
+      if (runtimeMessage.type === 'TRIGGER_TASK_START_REMINDER') {
         setTaskStartReminderVisible(true);
+      }
+    };
+
+    const storageListener = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string,
+    ) => {
+      if (areaName !== 'local') {
+        return;
+      }
+
+      const nextState = changes.appState?.newValue as AppState | undefined;
+      if (nextState) {
+        setState(nextState);
       }
     };
 
@@ -81,12 +106,14 @@ export function useExtensionState() {
     }
 
     chrome.runtime.onMessage.addListener(listener);
+    chrome.storage.onChanged.addListener(storageListener);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       chrome.runtime.onMessage.removeListener(listener);
+      chrome.storage.onChanged.removeListener(storageListener);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('pageshow', handlePageShow);

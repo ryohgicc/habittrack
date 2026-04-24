@@ -1,11 +1,20 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import Widget from '../components/Widget'
-import styles from '../index.css?inline' // Import Tailwind styles as inline string
-
-console.log('Content Script Loaded')
 
 const CONTAINER_ID = 'global-focus-timer-root'
+
+function getMountTarget() {
+  return document.body ?? document.documentElement
+}
+
+function attachContainer(container: HTMLElement) {
+  const mountTarget = getMountTarget()
+
+  if (container.parentElement !== mountTarget) {
+    mountTarget.appendChild(container)
+  }
+}
 
 if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
   console.warn('HabitTrack content script skipped because the extension context is unavailable.')
@@ -15,42 +24,74 @@ if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
     existingContainer.remove()
   }
 
-  // Create a container element
   const container = document.createElement('div')
   container.id = CONTAINER_ID
-  document.body.appendChild(container)
+  container.style.setProperty('all', 'initial')
+  container.style.position = 'fixed'
+  container.style.top = '0'
+  container.style.right = '0'
+  container.style.bottom = '0'
+  container.style.left = '0'
+  container.style.pointerEvents = 'none'
+  container.style.zIndex = '2147483647'
+  container.style.display = 'block'
+  container.style.isolation = 'isolate'
+  container.style.colorScheme = 'light dark'
 
-  // Create Shadow DOM
+  attachContainer(container)
+
   const shadowRoot = container.attachShadow({ mode: 'open' })
-
-  // Inject styles (This is simplified, for production we might need to fetch the CSS content)
-  // For development with HMR, Vite injects styles into document.head.
-  // We need to move/copy them into shadowRoot or use a style loader that supports Shadow DOM.
-  // A simple trick for now is to find the style tags injected by Vite and clone them,
-  // but that's complex.
-  // Alternatively, we can use a library or just standard CSS modules.
-  // Let's try to just render the App first.
-  // Note: Tailwind might not work inside Shadow DOM without specific configuration.
-  // For now, let's just render the component.
-
   const root = createRoot(shadowRoot)
+
+  const reattachIfNeeded = () => {
+    const mountTarget = getMountTarget()
+    if (!mountTarget) {
+      return
+    }
+
+    if (!container.isConnected || container.parentElement !== mountTarget) {
+      attachContainer(container)
+    }
+  }
+
+  const observer = new MutationObserver(() => {
+    reattachIfNeeded()
+  })
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  })
+
+  const triggerReattachSoon = () => {
+    window.requestAnimationFrame(() => {
+      reattachIfNeeded()
+    })
+  }
+
+  const originalPushState = history.pushState.bind(history)
+  history.pushState = (...args) => {
+    const result = originalPushState(...args)
+    triggerReattachSoon()
+    return result
+  }
+
+  const originalReplaceState = history.replaceState.bind(history)
+  history.replaceState = (...args) => {
+    const result = originalReplaceState(...args)
+    triggerReattachSoon()
+    return result
+  }
+
+  window.addEventListener('popstate', triggerReattachSoon)
+  window.addEventListener('hashchange', triggerReattachSoon)
+  window.addEventListener('load', reattachIfNeeded)
+  window.addEventListener('pageshow', reattachIfNeeded)
+  document.addEventListener('readystatechange', reattachIfNeeded)
+  document.addEventListener('visibilitychange', reattachIfNeeded)
+
   root.render(
     <React.StrictMode>
-      <style>{styles}</style>
-      <style>{`
-        /* Reset for shadow DOM */
-        :host {
-          all: initial;
-          z-index: 2147483647;
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          pointer-events: none;
-          font-family: system-ui, -apple-system, sans-serif;
-        }
-      `}</style>
       <Widget />
     </React.StrictMode>
   )

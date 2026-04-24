@@ -1,86 +1,197 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { Task } from '../types';
-import clsx from 'clsx';
-import { Play, Trash2, Edit2, Check, Hourglass } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react'
+import { Check, Edit2, Hourglass, Play, Trash2 } from 'lucide-react'
+import type { Task } from '../types'
+import type { WidgetTheme } from './widgetStyleTokens'
 
 interface TaskItemProps {
-  task: Task;
-  isActive: boolean;
-  onStart: (id: string) => void;
-  onDelete: (id: string) => void;
-  onEdit: (id: string, newTitle: string) => void;
-  onComplete: (id: string) => void;
-  formatDuration: (task: Task) => string;
+  task: Task
+  isActive: boolean
+  onStart: (id: string) => void
+  onDelete: (id: string) => void
+  onEdit: (id: string, newTitle: string) => void
+  onComplete: (id: string) => void
+  formatDuration: (task: Task) => string
+  theme: WidgetTheme
 }
 
-export const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onStart, onDelete, onEdit, onComplete, formatDuration }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(task.title);
-  const inputRef = useRef<HTMLInputElement>(null);
+type ActionKey = 'edit' | 'complete' | 'delete' | null
+
+const buttonReset: React.CSSProperties = {
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  background: 'transparent',
+  border: 'none',
+  margin: 0,
+  padding: 0,
+  font: 'inherit',
+  color: 'inherit',
+  cursor: 'pointer',
+  boxSizing: 'border-box',
+}
+
+export const TaskItem: React.FC<TaskItemProps> = ({
+  task,
+  isActive,
+  onStart,
+  onDelete,
+  onEdit,
+  onComplete,
+  formatDuration,
+  theme,
+}) => {
+  const s = theme.scale
+  const [isHovered, setIsHovered] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [activeAction, setActiveAction] = useState<ActionKey>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus()
+      inputRef.current.select()
     }
-  }, [isEditing]);
+  }, [isEditing])
 
   const handleEditSubmit = () => {
     if (editTitle.trim() && editTitle !== task.title) {
-      onEdit(task.id, editTitle.trim());
+      onEdit(task.id, editTitle.trim())
     } else {
-      setEditTitle(task.title);
+      setEditTitle(task.title)
     }
-    setIsEditing(false);
-  };
+    setIsEditing(false)
+  }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleEditSubmit();
+      handleEditSubmit()
     } else if (e.key === 'Escape') {
-      setEditTitle(task.title);
-      setIsEditing(false);
+      setEditTitle(task.title)
+      setIsEditing(false)
     }
-  };
+  }
+
+  const rowBackground = isActive
+    ? theme.colors.accentSoft
+    : isHovered
+      ? theme.colors.panelMuted
+      : 'transparent'
+
+  const rowBorder = isActive ? theme.colors.accent : 'transparent'
+
+  const actionButtonStyle = (action: Exclude<ActionKey, null>): React.CSSProperties => {
+    const colorMap = {
+      edit: theme.colors.accent,
+      complete: theme.colors.success,
+      delete: theme.colors.danger,
+    }
+
+    const backgroundMap = {
+      edit: theme.colors.accentSoft,
+      complete: theme.colors.successSoft,
+      delete: theme.colors.dangerSoft,
+    }
+
+    const isActionHovered = activeAction === action
+
+    return {
+      ...buttonReset,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: s(24),
+      height: s(24),
+      borderRadius: theme.radius.sm,
+      color: isActionHovered ? colorMap[action] : theme.colors.iconMuted,
+      background: isActionHovered ? backgroundMap[action] : 'transparent',
+      transition: theme.transition,
+      flexShrink: 0,
+    }
+  }
 
   if (task.status === 'completed') {
     return (
-      <div className="flex items-center justify-between p-2 rounded-md text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50">
-        <div className="flex-1 truncate mr-2 line-through">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: s(6),
+          padding: `${s(7)}px ${s(8)}px`,
+          borderRadius: theme.radius.md,
+          background: theme.colors.panelMuted,
+          color: theme.colors.textMuted,
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            marginRight: 8,
+            textDecoration: 'line-through',
+            fontSize: s(13),
+            lineHeight: theme.px(18),
+          }}
+        >
           {task.title}
         </div>
-        <div className="text-xs font-mono mr-2">
+        <div
+          style={{
+            fontFamily: theme.fonts.mono,
+            fontSize: s(11),
+            lineHeight: theme.px(16),
+            marginRight: 8,
+            flexShrink: 0,
+          }}
+        >
           {formatDuration(task)}
         </div>
-        <div className="flex items-center w-5 justify-center">
-           <Check size={14} />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 20,
+            flexShrink: 0,
+            color: theme.colors.success,
+          }}
+        >
+          <Check size={s(13)} />
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        setIsHovered(false)
+        setActiveAction(null)
+      }}
       onClick={() => {
         if (!isEditing && !isActive) {
-          onStart(task.id);
-        } else if (isActive) {
-          // If active, clicking anywhere could also mean pausing/stopping, 
-          // but usually clicking the item again might not be the standard pause action.
-          // The pause button is in the footer or the play icon area.
-          // Let's keep it simple: clicking anywhere starts it if not active.
-          // If active, maybe we want to pause? The user requirement says "Start that task",
-          // implies if it's another task. If it's the same task, it's already started.
+          onStart(task.id)
         }
       }}
-      className={clsx(
-        'group flex items-center justify-between p-2 rounded-md transition-colors text-sm relative cursor-pointer',
-        isActive
-          ? 'bg-blue-100 dark:bg-blue-900 border-l-4 border-blue-500'
-          : 'hover:bg-gray-100 dark:hover:bg-gray-800 border-l-4 border-transparent'
-      )}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: s(6),
+        padding: `${s(7)}px ${s(8)}px`,
+        borderRadius: theme.radius.md,
+        transition: theme.transition,
+        position: 'relative',
+        cursor: isEditing ? 'default' : 'pointer',
+        borderLeft: `4px solid ${rowBorder}`,
+        background: rowBackground,
+        boxSizing: 'border-box',
+        minHeight: s(36),
+      }}
     >
       {isEditing ? (
         <input
@@ -90,65 +201,121 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onStart, onD
           onChange={(e) => setEditTitle(e.target.value)}
           onBlur={handleEditSubmit}
           onKeyDown={handleKeyDown}
-          className="flex-1 mr-2 bg-white dark:bg-gray-700 border border-blue-500 rounded px-1 py-0.5 text-sm outline-none cursor-text"
           onClick={(e) => e.stopPropagation()}
+          style={{
+            flex: 1,
+            marginRight: 8,
+            padding: `${s(4)}px ${s(6)}px`,
+            borderRadius: theme.radius.sm,
+            border: `1px solid ${theme.colors.inputFocus}`,
+            background: theme.colors.input,
+            color: theme.colors.textPrimary,
+            outline: 'none',
+            fontSize: s(13),
+            lineHeight: theme.px(18),
+            boxSizing: 'border-box',
+          }}
         />
       ) : (
-        <div 
-          className="flex-1 truncate mr-2 font-medium text-gray-800 dark:text-gray-200"
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            marginRight: 8,
+            fontWeight: 600,
+            fontSize: s(13),
+            lineHeight: theme.px(18),
+            color: theme.colors.textPrimary,
+          }}
         >
           {task.title}
         </div>
       )}
-      
+
       {!isEditing && !isHovered && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mr-2">
+        <div
+          style={{
+            fontFamily: theme.fonts.mono,
+            fontSize: s(11),
+            lineHeight: theme.px(16),
+            color: theme.colors.textMuted,
+            marginRight: 8,
+            flexShrink: 0,
+          }}
+        >
           {formatDuration(task)}
         </div>
       )}
-      
-      <div className="flex items-center space-x-1">
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: s(4),
+          flexShrink: 0,
+        }}
+      >
         {isHovered && !isEditing ? (
           <>
-            <button 
+            <button
+              type="button"
               onClick={(e) => {
-                e.stopPropagation();
-                setIsEditing(true);
+                e.stopPropagation()
+                setEditTitle(task.title)
+                setIsEditing(true)
               }}
-              className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+              onMouseEnter={() => setActiveAction('edit')}
+              onMouseLeave={() => setActiveAction((current) => (current === 'edit' ? null : current))}
               title="修改名称"
+              style={actionButtonStyle('edit')}
             >
-              <Edit2 size={14} />
+              <Edit2 size={s(13)} />
             </button>
-            <button 
+            <button
+              type="button"
               onClick={(e) => {
-                e.stopPropagation();
-                onComplete(task.id);
+                e.stopPropagation()
+                onComplete(task.id)
               }}
-              className="text-gray-400 hover:text-green-500 transition-colors p-1"
+              onMouseEnter={() => setActiveAction('complete')}
+              onMouseLeave={() => setActiveAction((current) => (current === 'complete' ? null : current))}
               title="完成任务"
+              style={actionButtonStyle('complete')}
             >
-              <Check size={14} />
+              <Check size={s(13)} />
             </button>
-            <button 
+            <button
+              type="button"
               onClick={(e) => {
-                e.stopPropagation();
-                onDelete(task.id);
+                e.stopPropagation()
+                onDelete(task.id)
               }}
-              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+              onMouseEnter={() => setActiveAction('delete')}
+              onMouseLeave={() => setActiveAction((current) => (current === 'delete' ? null : current))}
               title="删除任务"
+              style={actionButtonStyle('delete')}
             >
-              <Trash2 size={14} />
+              <Trash2 size={s(13)} />
             </button>
           </>
         ) : (
           !isEditing && (
-            <div className="w-5 flex justify-center">
-               {isActive ? <Hourglass size={14} className="text-blue-500 animate-spin-slow" /> : <Play size={14} className="text-gray-400 group-hover:text-blue-500" />}
+            <div
+              style={{
+                width: 20,
+                display: 'flex',
+                justifyContent: 'center',
+                color: isActive ? theme.colors.accent : theme.colors.iconMuted,
+              }}
+            >
+              {isActive ? <Hourglass size={s(13)} /> : <Play size={s(13)} />}
             </div>
           )
         )}
       </div>
     </div>
-  );
-};
+  )
+}

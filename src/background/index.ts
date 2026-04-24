@@ -3,10 +3,41 @@ import type { AppState, Task } from '../types';
 
 let appState: AppState = { ...INITIAL_STATE };
 let isStateLoaded = false;
-let stateLoadPromise: Promise<void>;
+
+async function broadcastToOpenTabs(message: unknown) {
+  const tabs = await chrome.tabs.query({});
+
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (typeof tab.id !== 'number') {
+        return;
+      }
+
+      try {
+        await chrome.tabs.sendMessage(tab.id, message);
+      } catch {
+        // Ignore tabs that do not have the content script injected.
+      }
+    }),
+  );
+}
+
+async function sendToActiveTab(message: unknown) {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (typeof activeTab?.id !== 'number') {
+    return false;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(activeTab.id, message);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Load state from storage
-stateLoadPromise = new Promise((resolve) => {
+const stateLoadPromise = new Promise<void>((resolve) => {
   chrome.storage.local.get(['appState'], (result) => {
     if (result.appState) {
       appState = result.appState as AppState;
@@ -34,40 +65,14 @@ stateLoadPromise = new Promise((resolve) => {
 
 function saveState() {
   chrome.storage.local.set({ appState });
-  // Notify all tabs about state change
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach((tab) => {
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, { type: 'STATE_UPDATE', payload: appState }).catch(() => {
-          // Ignore error if tab doesn't have content script
-        });
-      }
-    });
-  });
-}
-
-async function sendTaskStartReminderToTab(tabId: number) {
-  try {
-    await chrome.tabs.sendMessage(tabId, { type: 'TRIGGER_TASK_START_REMINDER' });
-    return true;
-  } catch {
-    return false;
-  }
+  void broadcastToOpenTabs({ type: 'STATE_UPDATE', payload: appState });
 }
 
 async function triggerTaskStartReminderForActiveTab() {
-  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  const activeTab = tabs.find((tab) => typeof tab.id === 'number');
-  if (!activeTab?.id) {
-    return { ok: false, message: '当前没有可接收提醒的活动网页标签。' };
-  }
-
-  const delivered = await sendTaskStartReminderToTab(activeTab.id);
-  if (delivered) {
-    return { ok: true, message: '测试提醒已投递到当前页面。' };
-  }
-
-  return { ok: false, message: '当前页面无法接收提醒，请先刷新网页后再试。' };
+  const delivered = await sendToActiveTab({ type: 'TRIGGER_TASK_START_REMINDER' });
+  return delivered
+    ? { ok: true, message: '测试提醒已投递到当前页面。' }
+    : { ok: false, message: '当前页面不可接收提醒，请切到普通网页标签页后重试。' };
 }
 
 function checkDailyReset() {
@@ -113,22 +118,22 @@ function checkDailyReset() {
 }
 
 // Handle messages
-chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
-  // Check for daily reset on every interaction to handle day changes while running
-  checkDailyReset();
-  checkAutoRest();
-  checkTaskStartReminder();
-
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const handleMessage = async () => {
     if (!isStateLoaded) {
       await stateLoadPromise;
     }
 
+    // Check scheduled transitions against the loaded state on every interaction.
+    checkDailyReset();
+    checkAutoRest();
+    checkTaskStartReminder();
+
     switch (message.type) {
       case 'GET_STATE':
         sendResponse(appState);
         break;
-      
+
       case 'SET_SELECTED_DATE':
         appState.selectedDate = message.payload.date;
         saveState();
@@ -168,7 +173,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
         break;
   
-      case 'UPDATE_AUTO_STOP_SETTINGS':
+      case 'UPDATE_AUTO_STOP_SETTINGS': {
         appState.autoStopSettings = message.payload;
         // Reset lastAutoStopDate if user changes settings to allow re-triggering?
         // Maybe not necessary, but if they change time to later today, it should trigger again.
@@ -185,8 +190,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         saveState();
         setupAutoStopAlarm(); // Ensure alarm is running
         break;
+      }
 
-      case 'UPDATE_AUTO_REST_SETTINGS':
+      case 'UPDATE_AUTO_REST_SETTINGS': {
         appState.autoRestSettings = message.payload;
         const now = new Date();
         const [lunchHour, lunchMinute] = message.payload.lunchTime.split(':').map(Number);
@@ -200,8 +206,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         saveState();
         setupAutoStopAlarm(); // Reuse same periodic alarm
         break;
+      }
 
-      case 'UPDATE_TASK_START_REMINDER_SETTINGS':
+      case 'UPDATE_TASK_START_REMINDER_SETTINGS': {
         appState.taskStartReminderSettings = message.payload;
         const [remindHour, remindMinute] = message.payload.time.split(':').map(Number);
         const remindTarget = new Date();
@@ -212,8 +219,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         saveState();
         setupAutoStopAlarm(); // Reuse same periodic alarm
         break;
+      }
 
-      case 'ADD_TASK':
+      case 'ADD_TASK': {
         const newTask: Task = {
           id: crypto.randomUUID(),
           title: message.payload.title,
@@ -225,8 +233,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         appState.tasks.push(newTask);
         saveState();
         break;
+      }
       
-      case 'EDIT_TASK':
+      case 'EDIT_TASK': {
         const taskToEdit = appState.tasks.find(t => t.id === message.payload.taskId);
         if (taskToEdit) {
           taskToEdit.title = message.payload.title;
@@ -237,8 +246,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           saveState();
         }
         break;
+      }
   
-      case 'COMPLETE_TASK':
+      case 'COMPLETE_TASK': {
         const taskToComplete = appState.tasks.find(t => t.id === message.payload.taskId);
         if (taskToComplete) {
           // If running, stop it first
@@ -269,8 +279,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
           saveState();
         }
         break;
+      }
   
-      case 'DELETE_TASK':
+      case 'DELETE_TASK': {
         const taskToDeleteId = message.payload.taskId;
         // If the task to delete is currently running, stop the timer first
         if (appState.currentTaskId === taskToDeleteId && appState.status === 'in_progress') {
@@ -283,8 +294,9 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         appState.tasks = appState.tasks.filter(t => t.id !== taskToDeleteId);
         saveState();
         break;
+      }
   
-      case 'START_TASK':
+      case 'START_TASK': {
         // Stop current timer (rest or other task)
         stopCurrentTimer();
         
@@ -305,6 +317,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         appState.lastTaskStartReminderDate = new Date().toDateString();
         saveState();
         break;
+      }
   
       case 'START_REST':
         stopCurrentTimer();
@@ -378,7 +391,7 @@ function checkTaskStartReminder() {
 
   appState.lastTaskStartReminderDate = today;
   if (!hasStartedTaskToday) {
-    triggerTaskStartReminderForActiveTab();
+    void triggerTaskStartReminderForActiveTab();
   }
   saveState();
 }
